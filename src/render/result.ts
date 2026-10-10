@@ -54,7 +54,7 @@ function breakdown(lines: Line[], totalLabel: string, total: number, head = ["�
   const rows = lines
     .map((l) => `<tr><th scope="row">${esc(l.label)}</th><td class="basis">${esc(l.basis)}</td><td class="amt">${wonText(l.amount)}</td></tr>`)
     .join("");
-  return `<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">${head[0]}</th><th scope="col" class="basis">${head[1]}</th><th scope="col" class="amt">${head[2]}</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">${esc(totalLabel)}</th><td class="basis"></td><td class="amt">${wonText(total)}</td></tr></tfoot></table></div>`;
+  return `<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">${head[0]}</th><th scope="col" class="basis">${head[1]}</th><th scope="col" class="amt">${head[2]}</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">${esc(totalLabel)}</th><td class="basis"></td><td class="amt">${wonText(total)}</td></tr></tfoot></table></div>`;
 }
 
 function details(summary: string, body: string): string {
@@ -72,7 +72,7 @@ export function renderSalary(r: SalaryResult, opts: { reverse?: { annual: number
   const extra = r.insurance.rows.some((x) => x.badge) ? r.insurance.rows.filter((x) => x.badge).map((x) => `${x.label} ${x.badge}`) : [];
   const gross = `<dl class="kv"><div><dt>월 총지급액</dt><dd>${wonText(r.monthlyGross)}</dd></div><div><dt>비과세</dt><dd>${wonText(r.nonTaxable)}</dd></div><div><dt>월 과세급여</dt><dd>${wonText(r.taxableMonthly)}</dd></div></dl>`;
   const employer = `<details class="how"><summary>회사가 추가로 내는 4대보험 (사업주 부담)</summary><div class="how-body">
-<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col" class="basis">계산 근거</th><th scope="col" class="amt">월 부담</th></tr></thead><tbody>${r.insurance.rows
+<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col" class="basis">계산 근거</th><th scope="col" class="amt">월 부담</th></tr></thead><tbody>${r.insurance.rows
     .map((x) => `<tr><th scope="row">${esc(x.label)}</th><td class="basis">${esc(x.employerBasis)}</td><td class="amt">${wonText(x.employer)}</td></tr>`)
     .join("")}</tbody><tfoot><tr><th scope="row">사업주 부담 합계</th><td class="basis"></td><td class="amt">${wonText(r.employerInsurance)}</td></tr></tfoot></table></div>
 <p class="muted">월 인건비 총액(총지급액 + 사업주 4대보험): <b>${wonText(r.employerCost)}</b></p></div></details>`;
@@ -130,9 +130,9 @@ export function renderInsurance(r: InsuranceResult, ctx: { year: number; asOf: s
     .join("");
   const basis = r.rows.map((x) => `<tr><th scope="row">${esc(x.label)}</th><td>${esc(x.workerBasis)}</td><td>${esc(x.employerBasis)}</td></tr>`).join("");
   return `<div class="result-inner">${badges(ctx.year, ctx.asOf, extra)}${hero("근로자 부담 4대보험 (월)", r.workerTotal, `사업주 부담 <b>${wonText(r.employerTotal)}</b> · 보험료 총액 ${wonText(r.total)} · 연 환산 근로자 ${wonText(r.workerTotal * 12)}`)}
-<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col" class="amt">총액</th><th scope="col" class="amt">근로자</th><th scope="col" class="amt">사업주</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">합계</th><td class="amt">${wonText(r.total)}</td><td class="amt">${wonText(r.workerTotal)}</td><td class="amt">${wonText(r.employerTotal)}</td></tr></tfoot></table></div>
+<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col" class="amt">총액</th><th scope="col" class="amt">근로자</th><th scope="col" class="amt">사업주</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">합계</th><td class="amt">${wonText(r.total)}</td><td class="amt">${wonText(r.workerTotal)}</td><td class="amt">${wonText(r.employerTotal)}</td></tr></tfoot></table></div>
 ${noticeList(r.notices)}
-${details("계산 근거 보기", `<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col">근로자</th><th scope="col">사업주</th></tr></thead><tbody>${basis}</tbody></table></div><p class="muted">월 보수(과세) ${wonText(ctx.taxableMonthly)} 기준. 두루누리(10인 미만 사업장·월 260만원 미만 신규가입자 80% 지원)는 계산에 반영하지 않았어요. <a href="/basis">요율표·출처</a></p>`)}
+${details("계산 근거 보기", `<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col">근로자</th><th scope="col">사업주</th></tr></thead><tbody>${basis}</tbody></table></div><p class="muted">월 보수(과세) ${wonText(ctx.taxableMonthly)} 기준. 두루누리(10인 미만 사업장·월 260만원 미만 신규가입자 80% 지원)는 계산에 반영하지 않았어요. <a href="/basis">요율표·출처</a></p>`)}
 <p class="disclaimer">${esc(disclaimer)}</p></div>`;
 }
 

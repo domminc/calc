@@ -1,7 +1,7 @@
 /* homesell 계산기 — docs/DESIGN.md 의 토큰을 그대로 옮김 */
 :root {
   --bg: #f6f6f3; --surface: #ffffff; --tile: #f0f0ec; --line: #e4e4de;
-  --ink: #111315; --sub: #6a6f76; --accent: #0b6b52; --accent-fg: #ffffff;
+  --ink: #111315; --sub: #5a6067; --accent: #0b6b52; --accent-fg: #ffffff;
   --warn: #9a5b00; --danger: #b3261e;
   --seg-net: #0b6b52; --seg-1: #3a5a78; --seg-2: #5b7a95; --seg-3: #7e98ad; --seg-4: #a3b6c6; --seg-5: #c9d4de; --seg-6: #dfe6ec;
   --font: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
@@ -87,6 +87,7 @@ a.card:hover .go i { transform: translateX(4px); }
 .pill:hover { border-color: var(--ink); }
 
 /* calculator layout */
+.calc-grid > * { min-width: 0; }
 .calc-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (min-width: 960px) { .calc-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } .result-col { position: sticky; top: 76px; } }
 .form { padding: 20px; display: flex; flex-direction: column; gap: 4px; }
@@ -95,7 +96,8 @@ a.card:hover .go i { transform: translateX(4px); }
 .field > label, .field > legend, .seg-field legend { font-weight: 600; font-size: .9375rem; padding: 0; }
 .input-wrap { display: flex; align-items: center; background: var(--tile); border: 1px solid transparent; border-radius: var(--r-input); padding: 0 14px; min-height: 52px; }
 .input-wrap:focus-within { border-color: var(--accent); background: var(--surface); }
-.input-wrap input { flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 1.125rem; font-weight: 600; padding: 12px 0; outline: none; text-align: right; font-variant-numeric: tabular-nums; }
+.input-wrap { min-width: 0; }
+.input-wrap input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-size: 1.125rem; font-weight: 600; padding: 12px 0; outline: none; text-align: right; font-variant-numeric: tabular-nums; }
 .input-wrap input:focus-visible { outline: none; }
 .suffix { color: var(--sub); margin-left: 8px; font-size: .9375rem; flex: none; }
 .field.has-error .input-wrap { border-color: var(--danger); }
@@ -129,8 +131,10 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 .more summary, .how summary { cursor: pointer; font-weight: 600; color: var(--sub); font-size: .9375rem; padding: 8px 0; min-height: 44px; }
 .allow { border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin: 8px 0; }
 .allow-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
-.allow-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px dashed var(--line); }
-.allow-row .allow-name, .allow-row .allow-amt { grid-column: span 1; }
+.allow-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 10px 0; border-top: 1px dashed var(--line); }
+.allow-row > * { min-width: 0; }
+.allow-row .allow-name, .allow-row .allow-amt { grid-column: 1 / -1; }
+.allow-name input { min-width: 0; }
 .allow-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .allow-amt .input-wrap { min-height: 52px; }
 
@@ -170,6 +174,7 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 .kv dt { color: var(--sub); font-size: .8125rem; }
 .kv dd { margin: 2px 0 0; font-weight: 700; }
 .tbl-wrap { overflow-x: auto; }
+.tbl-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: .9375rem; }
 .tbl th, .tbl td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
 .tbl thead th { color: var(--sub); font-size: .8125rem; font-weight: 600; }

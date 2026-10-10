@@ -5,7 +5,6 @@ import { calcInsurance, workerLines, type InsuranceResult } from "./insurance.ts
 import { withholdingTax } from "./withholding.ts";
 import type { CompanySize, FieldErrors, Line, Notice, Parsed } from "./types.ts";
 import { dateField, fixFamily, intField, parsed, sizeField, toBool, toNumber, type Raw } from "./inputs.ts";
-import { floor10 } from "./money.ts";
 
 export type SalaryMode = "forward" | "reverse";
 
@@ -88,7 +87,7 @@ export interface SalaryResult {
 
 /** 순방향 계산. */
 export function calcSalary(input: SalaryInput, resolved: Resolved = resolveRates(input.asOf)): SalaryResult {
-  const { rates, withholding } = resolved.set;
+  const { rates } = resolved.set;
   const divisor = input.severanceIncluded ? 13 : 12;
   const monthlyGross = Math.floor(input.annual / divisor);
   const nonTaxable = Math.min(input.nonTaxableMonthly, monthlyGross);
@@ -169,4 +168,3 @@ export function solveAnnualForNet(input: SalaryInput, resolved: Resolved = resol
   return { annual, result: calcSalary({ ...input, annual, mode: "forward" }, resolved), reachable: true };
 }
 
-export { floor10 };

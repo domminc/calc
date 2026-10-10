@@ -149,7 +149,7 @@ export function tableIndexPage(c: Ctx): string {
     .join("");
   const body = `<section class="wrap page-head"><p class="crumb"><a href="/">홈</a> / <a href="/salary">연봉 계산기</a> / 실수령액표</p><h1>연봉별 월 실수령액표 (2026)</h1>
 <p class="lead">비과세 월 20만원, 부양가족 본인 1명, 퇴직금 별도 기준이에요. 내 조건으로 바꾸려면 <a href="/salary">연봉 계산기</a>를 사용하세요.</p></section>
-<section class="wrap"><div class="tbl-wrap"><table class="tbl tbl-table"><thead><tr><th scope="col">연봉</th><th scope="col" class="amt">월 실수령액</th><th scope="col" class="amt">월 공제액</th><th scope="col" class="amt">공제율</th></tr></thead><tbody>${tr}</tbody></table></div></section>`;
+<section class="wrap"><div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl tbl-table"><thead><tr><th scope="col">연봉</th><th scope="col" class="amt">월 실수령액</th><th scope="col" class="amt">월 공제액</th><th scope="col" class="amt">공제율</th></tr></thead><tbody>${tr}</tbody></table></div></section>`;
   return layout({
     title: "연봉별 월 실수령액표 2026 — 3000만원~3억 | homesell 계산기",
     description: "연봉 1,000만원부터 3억원까지 월 실수령액과 공제액을 표로 정리했어요. 국세청 간이세액표와 2026년 4대보험 요율 기준이에요.",
@@ -181,7 +181,7 @@ export function tableDetailPage(c: Ctx, man: number): string {
   const nav = `<div class="pills">${prev ? `<a class="pill" href="/salary/table/${prev}">← ${comma(prev)}만원</a>` : ""}<a class="pill" href="/salary/table">전체 표</a>${next ? `<a class="pill" href="/salary/table/${next}">${comma(next)}만원 →</a>` : ""}</div>`;
   const body = `<section class="wrap page-head"><p class="crumb"><a href="/">홈</a> / <a href="/salary">연봉 계산기</a> / <a href="/salary/table">실수령액표</a> / ${comma(man)}만원</p><h1>연봉 ${comma(man)}만원 실수령액 (2026)</h1>
 <p class="lead">월 <b>${wonText(r.netMonthly)}</b>, 연 환산 ${wonText(r.netAnnual)}이에요. (${esc(hangulWon(r.input.annual))}, 비과세 20만원·부양가족 1명 기준)</p></section>
-<section class="wrap"><section class="card result">${out.html}</section>
+<section class="wrap"><section id="result" class="card result">${out.html}</section>
 <p class="muted center"><a class="btn btn-primary" href="/salary?annual=${man * 10_000}">내 조건으로 계산하기</a></p>${nav}</section>
 <section class="wrap">${faqHtml(faq)}</section>`;
   return layout({
@@ -205,7 +205,7 @@ export function sharedPage(c: Ctx, id: string, key: CalcKey, inputs: Record<stri
   const q = new URLSearchParams(sanitizeInputs(key, inputs)).toString();
   const body = `<section class="wrap page-head"><p class="crumb"><a href="/">홈</a> / 공유된 ${esc(m.name)} 결과</p><h1>공유된 ${esc(m.name)} 결과</h1>
 <p class="lead">${ratesYear}년 기준으로 저장된 입력을 다시 계산한 결과예요. ${esc(expiresAt.slice(0, 10))}까지 보관돼요.</p></section>
-<section class="wrap"><section class="card result">${out.html}</section>
+<section class="wrap"><section id="result" class="card result">${out.html}</section>
 <p class="center"><a class="btn btn-primary" href="${m.path}?${esc(q)}">이 입력으로 다시 계산하기</a></p></section>`;
   return layout({ title: `공유된 ${m.name} 결과 | ${"homesell 계산기"}`, description: `${m.name} 공유 결과`, path: `/r/${id}`, origin: c.origin, version: c.version, body, noindex: true, script: false, current: m.path });
 }

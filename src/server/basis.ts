@@ -29,7 +29,7 @@ export function basisBody(history: { year: number; version: string; effective_fr
   const un = UNVERIFIED.map((u) => `<tr><td>${u.id}</td><td>${esc(u.item)}</td><td>${esc(u.assumption)}</td><td>${esc(u.impact)}</td></tr>`).join("");
   const hist = history
     ? history.length
-      ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">연도</th><th scope="col">버전</th><th scope="col">시행</th><th scope="col">기록일</th></tr></thead><tbody>${history
+      ? `<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">연도</th><th scope="col">버전</th><th scope="col">시행</th><th scope="col">기록일</th></tr></thead><tbody>${history
           .map((h) => `<tr><td>${h.year}</td><td><code>${esc(h.version)}</code></td><td>${esc(h.effective_from)}</td><td>${esc(h.created_at.slice(0, 10))}</td></tr>`)
           .join("")}</tbody></table></div>`
       : `<p class="muted">기록이 아직 없어요.</p>`
@@ -41,7 +41,7 @@ export function basisBody(history: { year: number; version: string; effective_fr
 <p class="lead">${set.year}년 기준(작성 ${esc(r.asOf)}). 아래 값이 계산기에 그대로 쓰여요. 법령·공단 원문으로 확인하지 못한 항목은 맨 아래에 모두 적었어요.</p></section>
 <section class="wrap prose">
 <h2>4대보험 요율 (${set.year})</h2>
-<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col">요율</th><th scope="col">근로자</th><th scope="col">사업주</th></tr></thead><tbody>
+<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">보험</th><th scope="col">요율</th><th scope="col">근로자</th><th scope="col">사업주</th></tr></thead><tbody>
 <tr><th scope="row">국민연금</th><td>${pct(r.nps.rate)}</td><td>${pct(r.nps.rate * r.nps.workerShare)}</td><td>${pct(r.nps.rate * (1 - r.nps.workerShare))}</td></tr>
 <tr><th scope="row">건강보험</th><td>${pct(r.nhis.rate)}</td><td>${pct(r.nhis.rate * r.nhis.workerShare)}</td><td>${pct(r.nhis.rate * (1 - r.nhis.workerShare))}</td></tr>
 <tr><th scope="row">장기요양</th><td>${pct(r.nhis.ltc.rate)} (건강보험료의 ${(r.nhis.ltc.rate / r.nhis.rate * 100).toFixed(2)}%)</td><td>건강보험료 × ${(r.nhis.ltc.rate / r.nhis.rate * 100).toFixed(2)}% ÷ 2</td><td>동일</td></tr>
@@ -55,7 +55,7 @@ export function basisBody(history: { year: number; version: string; effective_fr
 <h2>소득세</h2>
 <p>월 원천징수 소득세는 <b>근로소득 간이세액표</b>(소득세법 시행령 별표2, ${esc(w.revision)})를 원문 그대로 사용해요. 월급여 770천원~10,000천원 ${w.bands.length}개 구간 × 공제대상가족 1~11명, 10,000천원 초과는 별표 말미 계산식을 적용해요. 8~20세 자녀 세액공제는 1명 ${comma(w.childCredit.one)}원, 2명 ${comma(w.childCredit.two)}원, 3명부터 1명당 ${comma(w.childCredit.perExtraChild)}원을 더해 빼요.</p>
 <h3>종합소득세 기본세율 (소득세법 제55조)</h3>
-<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">과세표준 초과</th><th scope="col">과세표준 이하</th><th scope="col" class="amt">세율</th><th scope="col" class="amt">누진공제</th></tr></thead><tbody>${bracket}</tbody></table></div>
+<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">과세표준 초과</th><th scope="col">과세표준 이하</th><th scope="col" class="amt">세율</th><th scope="col" class="amt">누진공제</th></tr></thead><tbody>${bracket}</tbody></table></div>
 <p class="muted">기본공제 1인 150만원, 표준세액공제 7만원(근로소득 없는 종합소득자), 8세 이상 자녀세액공제 1명 25만원·2명 55만원·3명부터 1명당 40만원.</p>
 
 <h2>최저임금</h2>
@@ -63,7 +63,7 @@ export function basisBody(history: { year: number; version: string; effective_fr
 
 <h2>공식 원문으로 확인하지 못한 항목</h2>
 <p>아래는 법령·공단 원문을 직접 확인하지 못해 가정을 둔 부분이에요. 금액 차이가 생기면 <a href="/feedback">알려 주세요</a>.</p>
-<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">번호</th><th scope="col">항목</th><th scope="col">현재 가정</th><th scope="col">영향</th></tr></thead><tbody>${un}</tbody></table></div>
+<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">번호</th><th scope="col">항목</th><th scope="col">현재 가정</th><th scope="col">영향</th></tr></thead><tbody>${un}</tbody></table></div>
 
 <h2>출처</h2>
 <ul class="src">${sources}</ul>

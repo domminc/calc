@@ -31,13 +31,13 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     await sql.end({ timeout: 2 });
   });
 
-  it("health: DB 응답 정상", async () => {
+  it("DB-01 health: DB 응답 정상", async () => {
     const h = (await (await req("/api/health")).json()) as Record<string, unknown>;
     expect(h.DB_응답).toBe("정상");
     expect(h.파일_저장).toBe("R2");
   });
 
-  it("공유 링크 생성 → /r/{id} 에서 같은 결과를 다시 계산", async () => {
+  it("DB-02 공유 링크 생성 → /r/{id} 에서 같은 결과를 다시 계산", async () => {
     const res = await post("/api/share", { calculator: "salary", inputs: { annual: "40,000,000", nonTaxable: "200000", family: "1", asOf: "2026-10-10" } });
     expect(res.status).toBe(201);
     const { id, url: shareUrl } = (await res.json()) as { id: string; url: string };
@@ -54,14 +54,14 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     expect(row!.inputs).toMatchObject({ annual: "40000000" }); // 콤마 제거
   });
 
-  it("공유: 잘못된 입력·알 수 없는 계산기·큰 요청은 거절", async () => {
+  it("DB-03 공유: 잘못된 입력·알 수 없는 계산기·큰 요청은 거절", async () => {
     expect((await post("/api/share", { calculator: "salary", inputs: { annual: "abc" } }, "9.9.9.1")).status).toBe(400);
     expect((await post("/api/share", { calculator: "tax", inputs: {} }, "9.9.9.2")).status).toBe(400);
     expect((await req("/api/share", { method: "POST", body: "x".repeat(9000), headers: { "cf-connecting-ip": "9.9.9.3" } })).status).toBe(413);
     expect((await req("/api/share", { method: "POST", body: "not json", headers: { "cf-connecting-ip": "9.9.9.4" } })).status).toBe(400);
   });
 
-  it("공유: 허용되지 않은 키는 저장하지 않는다", async () => {
+  it("DB-04 공유: 허용되지 않은 키는 저장하지 않는다", async () => {
     const res = await post("/api/share", { calculator: "insurance", inputs: { monthly: "3000000", evil: "<script>", __proto__: "x" } }, "9.9.9.5");
     expect(res.status).toBe(201);
     const { id } = (await res.json()) as { id: string };
@@ -69,19 +69,19 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     expect(Object.keys(row!.inputs)).toEqual(["monthly"]);
   });
 
-  it("공유: 같은 IP 가 분당 10건을 넘으면 429", async () => {
+  it("DB-05 공유: 같은 IP 가 분당 10건을 넘으면 429", async () => {
     const codes: number[] = [];
     for (let i = 0; i < 12; i++) codes.push((await post("/api/share", { calculator: "insurance", inputs: { monthly: "3000000" } }, "7.7.7.7")).status);
     expect(codes.slice(0, 10).every((c) => c === 201)).toBe(true);
     expect(codes.slice(10)).toEqual([429, 429]);
   });
 
-  it("없는 공유 ID·형식 오류는 404", async () => {
+  it("DB-06 없는 공유 ID·형식 오류는 404", async () => {
     expect((await req("/r/ZZZZZZZZ")).status).toBe(404);
     expect((await req("/r/short")).status).toBe(404);
   });
 
-  it("신고 접수(JSON·폼) 와 검증", async () => {
+  it("DB-07 신고 접수(JSON·폼) 와 검증", async () => {
     expect((await post("/api/feedback", { calculator: "salary", message: "건강보험이 20원 달라요", contact: "a@b.c" }, "5.5.5.1")).status).toBe(204);
     const form = new URLSearchParams({ calculator: "other", message: "폼으로 접수" });
     const r = await req("/api/feedback", { method: "POST", body: form, headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "5.5.5.2" }, redirect: "manual" });
@@ -93,14 +93,14 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     expect(rows[0]!.n).toBeGreaterThanOrEqual(2);
   });
 
-  it("통계: 계산기 페이지 조회가 usage_daily 에 쌓인다", async () => {
+  it("DB-08 통계: 계산기 페이지 조회가 usage_daily 에 쌓인다", async () => {
     await req("/insurance");
     await Promise.all(pending);
     const [row] = await sql<{ n: number }[]>`select coalesce(sum(view_count),0)::int as n from usage_daily where calculator = 'insurance'`;
     expect(row!.n).toBeGreaterThanOrEqual(1);
   });
 
-  it("내려받기: xlsx·pdf 생성 후 R2 캐시(두 번째는 hit)", async () => {
+  it("DB-09 내려받기: xlsx·pdf 생성 후 R2 캐시(두 번째는 hit)", async () => {
     const q = "c=salary&annual=40000000&nonTaxable=200000&asOf=2026-10-10";
     const x1 = await req(`/api/export/xlsx?${q}`);
     expect(x1.status).toBe(200);
@@ -120,7 +120,7 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     expect((await req("/api/export/doc?c=salary")).status).toBe(400);
   });
 
-  it("예약 작업: 만료된 공유·신고·제한 기록과 오래된 내보내기 캐시 삭제", async () => {
+  it("DB-10 예약 작업: 만료된 공유·신고·제한 기록과 오래된 내보내기 캐시 삭제", async () => {
     await sql`insert into shared_results (id, calculator, rate_year, inputs, expires_at) values ('OLDOLD01', 'salary', 2026, '{}', now() - interval '1 day')`;
     await sql`insert into feedback (calculator, message, expires_at) values ('other', 'old', now() - interval '1 day')`;
     await sql`insert into rate_limits (key, window_start, hits) values ('x', now() - interval '3 days', 1)`;
@@ -133,12 +133,12 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     expect(files.has("exports/old.xlsx")).toBe(false);
   });
 
-  it("스키마 제약: 8자 ID 형식·계산기 값 검사", async () => {
+  it("DB-12 스키마 제약: 8자 ID 형식·계산기 값 검사", async () => {
     await expect(sql`insert into shared_results (id, calculator, rate_year, inputs, expires_at) values ('bad', 'salary', 2026, '{}', now())`).rejects.toThrow();
     await expect(sql`insert into shared_results (id, calculator, rate_year, inputs, expires_at) values ('GOODID01', 'nope', 2026, '{}', now())`).rejects.toThrow();
   });
 
-  it("/basis 에 요율 개정 이력이 표시된다", async () => {
+  it("DB-11 /basis 에 요율 개정 이력이 표시된다", async () => {
     const html = await (await req("/basis")).text();
     expect(html).toContain("요율 개정 이력");
     expect(html).toContain("<code>");

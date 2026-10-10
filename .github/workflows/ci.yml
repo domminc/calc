@@ -1,0 +1,46 @@
+# PR·push 마다: 타입·린트·단위·DB 통합·e2e(브라우저)
+name: 검사
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: 타입·린트
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: 단위·골든 테스트
+        run: npm test
+      - name: DB 통합 테스트 (임시 Postgres)
+        run: npm run test:db
+      - name: 브라우저 설치
+        run: npx playwright install --with-deps chromium
+      - name: e2e (로컬 Worker + 임시 Postgres)
+        run: npm run test:e2e
+      - name: e2e 결과 보관
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results
+          retention-days: 7

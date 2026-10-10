@@ -14,7 +14,7 @@ const input = (raw: Record<string, string | number>) => parseSalaryInput({ asOf:
 const L = (r: ReturnType<typeof calcSalary>, key: string) => r.lines.find((l) => l.key === key)!.amount;
 
 describe("연봉 계산기", () => {
-  it("연봉 4,000만원 (비과세 20만, 가족 1명) — 손계산 값과 일치", () => {
+  it("UT-S1 연봉 4,000만원 (비과세 20만, 가족 1명) — 손계산 값과 일치 [V-12]", () => {
     const r = calcSalary(input({ annual: 40_000_000 }), resolved);
     expect(r.monthlyGross).toBe(3_333_333);
     expect(r.taxableMonthly).toBe(3_133_333);
@@ -30,38 +30,38 @@ describe("연봉 계산기", () => {
     expect(r.netAnnual).toBe(r.netMonthly * 12);
   });
 
-  it("퇴직금 포함: 월 지급액 = 연봉 ÷ 13", () => {
+  it("UT-S2 퇴직금 포함: 월 지급액 = 연봉 ÷ 13", () => {
     const r = calcSalary(input({ annual: 40_000_000, severance: "1" }), resolved);
     expect(r.monthlyGross).toBe(Math.floor(40_000_000 / 13));
   });
 
-  it("비과세가 월급보다 크면 월급까지만", () => {
+  it("UT-S3 비과세가 월급보다 크면 월급까지만", () => {
     const r = calcSalary(input({ annual: 10_000_000, nonTaxable: 5_000_000 }), resolved);
     expect(r.nonTaxable).toBe(r.monthlyGross);
     expect(r.taxableMonthly).toBe(0);
     expect(r.notices.some((n) => n.code === "nontax-capped")).toBe(true);
   });
 
-  it("월 과세급여 770천원 미만: 소득세 0 안내", () => {
+  it("UT-S4 월 과세급여 770천원 미만: 소득세 0 안내", () => {
     const r = calcSalary(input({ annual: 10_000_000, nonTaxable: 100_000 }), resolved);
     expect(r.incomeTax).toBe(0);
     expect(r.notices.some((n) => n.code === "tax-zero")).toBe(true);
   });
 
-  it("자녀 수가 가족 수를 넘으면 보정", () => {
+  it("UT-S5 자녀 수가 가족 수를 넘으면 보정", () => {
     const p = parseSalaryInput({ asOf: "2026-10-10", annual: 50_000_000, family: 1, children: 2 });
     expect(p.value.family).toBe(3);
     expect(p.adjusted.length).toBe(1);
   });
 
-  it("범위 밖 연봉은 오류", () => {
+  it("UT-S6 범위 밖 연봉은 오류", () => {
     const p = parseSalaryInput({ annual: 500 });
     expect(p.errors.annual).toBeTruthy();
     expect(parseSalaryInput({ annual: "abc" }).errors.annual).toBeTruthy();
     expect(parseSalaryInput({ annual: "40,000,000" }).errors.annual).toBeUndefined();
   });
 
-  it("연봉이 오를수록 월 실수령은 줄지 않는다 (1천만~3억, 100만원 간격)", () => {
+  it("UT-S7 연봉이 오를수록 월 실수령은 줄지 않는다 (1천만~3억, 100만원 간격)", () => {
     let prev = -1;
     for (let a = 10_000_000; a <= 300_000_000; a += 1_000_000) {
       const net = calcSalary(input({ annual: a }), resolved).netMonthly;
@@ -70,14 +70,14 @@ describe("연봉 계산기", () => {
     }
   });
 
-  it("사업주 부담과 인건비 총액", () => {
+  it("UT-S8 사업주 부담과 인건비 총액", () => {
     const r = calcSalary(input({ annual: 36_000_000, nonTaxable: 0 }), resolved);
     expect(r.monthlyGross).toBe(3_000_000);
     expect(r.insurance.employerTotal).toBe(343_120);
     expect(r.employerCost).toBe(3_343_120);
   });
 
-  it("역산: 찾은 연봉의 월 실수령 ≥ 목표 > 1만원 낮은 연봉의 월 실수령", () => {
+  it("UT-S9 역산: 찾은 연봉의 월 실수령 ≥ 목표 > 1만원 낮은 연봉의 월 실수령", () => {
     for (const target of [1_500_000, 2_500_000, 3_000_000, 5_000_000, 8_000_000]) {
       const base = input({ mode: "reverse", targetNet: target });
       const s = solveAnnualForNet(base, resolved);
