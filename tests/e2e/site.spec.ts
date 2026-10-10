@@ -127,3 +127,24 @@ test.describe("모바일", () => {
     await expect(page.locator("[data-sticky]")).toBeHidden();
   });
 });
+
+test.describe("폰트 (Pretendard 다이나믹 서브셋)", () => {
+  test("E70 Pretendard 만 로드하고, 필요한 서브셋 조각만 내려받는다", async ({ page }) => {
+    const fonts: string[] = [];
+    page.on("response", (r) => {
+      if (/\.(woff2?|ttf|otf)(\?|$)/.test(r.url())) fonts.push(new URL(r.url()).pathname);
+    });
+    await page.goto("/salary?asOf=2026-10-10");
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toMatch(/^"?Pretendard Variable/);
+    expect(await page.evaluate(() => document.fonts.check('16px "Pretendard Variable"', "연봉 실수령액 2,935,813원"))).toBe(true);
+    expect(fonts.length, "한글 화면에서 서브셋 파일을 한 개 이상 받는다").toBeGreaterThan(0);
+    // 실측: 페이지당 11~14개(273~346KB). 전체 92개(3.1MB)를 받지 않는 것이 핵심이라 여유를 두고 25개 미만으로 본다.
+    expect(fonts.length, "다이나믹 서브셋이라 전체(92개)를 받지 않는다").toBeLessThan(25);
+    for (const f of fonts) expect(f).toMatch(/^\/fonts\/woff2-dynamic-subset\/PretendardVariable\.subset\.\d+\.woff2$/);
+    const css = await (await page.request.get("/fonts/pretendard.css")).text();
+    expect(css).toContain("font-display: swap");
+    const head = await page.request.get(fonts[0]!);
+    expect(head.headers()["cache-control"]).toContain("immutable");
+  });
+});

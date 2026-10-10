@@ -1,8 +1,8 @@
 import { esc } from "../render/html.ts";
 import { NAV, SITE_NAME } from "./meta.ts";
 
-/** 웹 폰트 스타일시트. 마지막 단계에서 Pretendard 다이나믹 서브셋으로 전환한다. */
-export const FONT_CSS = "";
+/** 웹 폰트: Pretendard 다이나믹 서브셋 (unicode-range 로 쓰는 글자의 조각만 내려받는다). public/fonts/pretendard.css */
+export const FONT_CSS = "/fonts/pretendard.css";
 
 export interface PageOpts {
   title: string;

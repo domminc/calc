@@ -4,7 +4,7 @@
   --ink: #111315; --sub: #5a6067; --accent: #0b6b52; --accent-fg: #ffffff;
   --warn: #9a5b00; --danger: #b3261e;
   --seg-net: #0b6b52; --seg-1: #3a5a78; --seg-2: #5b7a95; --seg-3: #7e98ad; --seg-4: #a3b6c6; --seg-5: #c9d4de; --seg-6: #dfe6ec;
-  --font: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font: "Pretendard Variable", system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
   --gutter: clamp(16px, 5vw, 48px);
   --r-card: 20px; --r-input: 12px;
 }

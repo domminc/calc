@@ -59,3 +59,29 @@ describe("간이세액표 — 원문(별표2, 2026.2.27) 대조", () => {
     expect(withholdingTax(w, 3_010_000, 1, 0).localTax).toBe(7_430);
   });
 });
+
+describe("간이세액표 무결성 — 이상치 검사 (파싱 오류 탐지)", () => {
+  it("UT-W1 구간별 증가폭이 이웃과 3배 넘게 어긋나는 곳은 알려진 불연속뿐이다", () => {
+    const b = w.bands;
+    const known = new Set<number>([5840]); // 연 7,000만원: 별표2 1호 특별소득공제 계산식이 바뀌는 경계 (월 5,833천원 → 5,840천원 구간)
+    const unexpected: string[] = [];
+    for (let f = 0; f < 11; f++) {
+      const col = b.map((r) => r[2 + f]!);
+      const slope = b.slice(1).map((r, i) => (col[i + 1]! - col[i]!) / (r[1]! - r[0]!));
+      for (let i = 2; i < slope.length - 2; i++) {
+        const nb = [slope[i - 2]!, slope[i - 1]!, slope[i + 1]!, slope[i + 2]!].sort((x, y) => x - y);
+        const med = (nb[1]! + nb[2]!) / 2;
+        const start = b[i + 1]![0]!;
+        const zeroOnset = col[i]! === 0 || col[i - 1]! === 0 || col[i + 1]! === 0 || col[i - 2]! === 0; // 세액이 0 에서 처음 생기는 지점
+        if (med > 1 && !zeroOnset && (slope[i]! > med * 3 || slope[i]! < med / 3) && !known.has(start)) unexpected.push(`가족${f + 1} ${start}천원`);
+      }
+    }
+    expect(unexpected).toEqual([]);
+  });
+  it("UT-W2 모든 세액이 10원 단위", () => {
+    for (const r of w.bands) for (let k = 2; k < 13; k++) expect(r[k]! % 10).toBe(0);
+  });
+  it("UT-W3 원문 파일 해시 고정 (표를 바꾸면 이 값과 함께 검토)", () => {
+    expect(w.sourceSha256).toBe("5307b1d45c8f946ca2d54f10b1731b2ec8cfd1a26efb653673c13d660ae3b698");
+  });
+});

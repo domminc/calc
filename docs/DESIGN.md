@@ -155,8 +155,8 @@
 - 해요체/명사형 혼용 금지: 설명은 **~합니다/~해요 중 "~해요"** 로 통일(대문 톤). 숫자는 단정, 가정은 "가정" 표기.
 - 면책: "모의 계산 결과예요. 실제 급여·보험료는 회사와 공단 고지 기준으로 확정돼요."
 
-## 9. 폰트 적용 계획 (요청 사항)
-개발 완료 후 마지막 단계에서 **Pretendard 다이나믹 서브셋**(`woff2-dynamic-subset`)으로 전환한다.
+## 9. 폰트 (적용 완료: Pretendard 다이나믹 서브셋)
+개발·QA 를 마친 뒤 마지막 단계에서 **Pretendard 다이나믹 서브셋**(`woff2-dynamic-subset`)으로 전환했다. (대문 사이트와 같은 파일, Pretendard 1.3.9, OFL)
 - 파일: 대문 사이트에 있는 `fonts/pretendard.css` + `woff2-dynamic-subset/PretendardVariable.subset.N.woff2` 를 그대로 `public/fonts/` 에 복사 (unicode-range 로 필요한 서브셋만 다운로드).
 - CSS: `--font: "Pretendard Variable", system-ui, sans-serif;` 외 다른 웹폰트 로드 금지.
 - PDF 생성용은 별도: 서버에서 PDF 내장용 정적 폰트 서브셋 사용 (웹 폰트와 파일이 다름).
