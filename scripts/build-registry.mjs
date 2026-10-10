@@ -11,7 +11,7 @@ const years = readdirSync(join(root, "data", "rates"))
   .sort();
 if (!years.length) throw new Error("data/rates 에 연도 폴더가 없습니다");
 
-const lines = ["// 자동 생성 — scripts/build-registry.mjs (직접 고치지 않는다)", "/* eslint-disable */"];
+const lines = ["// 자동 생성 — scripts/build-registry.mjs (직접 고치지 않는다)"];
 const entries = [];
 for (const y of years) {
   if (!existsSync(join(root, "data", "rates", y, "rates.json"))) throw new Error(`${y}/rates.json 이 없습니다`);

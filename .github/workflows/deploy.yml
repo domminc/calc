@@ -1,6 +1,5 @@
-# main 에 올라가면: 검사 → Neon 마이그레이션(실패하면 멈춤) → 근거 원문 R2 업로드 → 배포 → /api/health 확인
-# 저장소 Secrets : CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATABASE_URL (Neon 직접 연결 주소)
-# 저장소 Variables: HYPERDRIVE_ID (setup-cloudflare 워크플로가 알려 준다), HEALTH_URL (선택, 기본 workers.dev 주소)
+# main 에 올라가면: 검사 → Neon 마이그레이션(실패하면 멈춤) → R2 버킷·Hyperdrive 확인(없으면 생성) → 근거 원문 R2 업로드 → 배포 → /api/health 확인
+# 저장소 Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATABASE_URL (Neon 직접 연결 주소)
 # Workers Route(calc.homesell.co.kr/*)는 대시보드에서 만든 것으로, wrangler deploy 는 이를 지우지 않는다.
 name: 배포
 
@@ -19,7 +18,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,6 +29,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: 필요한 Secrets 확인
+        run: |
+          missing=""
+          [ -z "${CLOUDFLARE_API_TOKEN}" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "${CLOUDFLARE_ACCOUNT_ID}" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -z "${{ secrets.DATABASE_URL }}" ] && missing="$missing DATABASE_URL"
+          if [ -n "$missing" ]; then echo "::error::저장소 Secrets 가 없어요:$missing (docs/DEPLOY.md)"; exit 1; fi
       - name: 검사
         run: |
           npm run typecheck
@@ -39,31 +48,48 @@ jobs:
         run: node scripts/migrate.mjs
       - name: 빌드
         run: npm run build
-      - name: 설정 확인
-        env:
-          HYPERDRIVE_ID: ${{ vars.HYPERDRIVE_ID }}
+      - name: R2 버킷 확인 (없으면 생성)
         run: |
-          if [ -z "$HYPERDRIVE_ID" ]; then echo "::error::저장소 Variables 에 HYPERDRIVE_ID 가 없어요. 'Cloudflare 처음 설정' 워크플로를 먼저 실행하세요."; exit 1; fi
-          sed -i "s/00000000000000000000000000000000/$HYPERDRIVE_ID/" wrangler.jsonc
-      - name: 근거 원문 R2 업로드
+          if npx wrangler r2 bucket list 2>/dev/null | grep -q "homesell-calc-files"; then
+            echo "R2 버킷 homesell-calc-files 있음"
+          else
+            npx wrangler r2 bucket create homesell-calc-files
+          fi
+          npx wrangler r2 bucket lifecycle add homesell-calc-files expire-exports exports/ --expire-days 7 || echo "수명주기 규칙은 이미 있거나 추가하지 못했어요 (예약 작업이 대신 지워요)."
+      - name: Hyperdrive 확인 (없으면 생성) 후 id 반영
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/hyperdrive/configs"
+          find_id() { curl -fsS -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "$api" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).result||[];const h=r.find(x=>x.name==="homesell-calc-db");process.stdout.write(h?h.id:"")})'; }
+          id="$(find_id)"
+          if [ -z "$id" ]; then
+            echo "Hyperdrive homesell-calc-db 를 만들어요"
+            npx wrangler hyperdrive create homesell-calc-db --connection-string="$DATABASE_URL" --caching-disabled
+            id="$(find_id)"
+          fi
+          if ! echo "$id" | grep -Eq '^[0-9a-f]{32}$'; then echo "::error::Hyperdrive id 를 찾지 못했어요 (토큰에 Hyperdrive 권한이 있는지 확인)"; exit 1; fi
+          echo "Hyperdrive id: $id"
+          sed -i "s/00000000000000000000000000000000/$id/" wrangler.jsonc
+      - name: 근거 원문 R2 업로드
         run: |
           for f in $(cd data/source && find . -type f \( -name '*.pdf' -o -name '*.txt' \) | sed 's|^\./||'); do
             ct=$(case "$f" in *.pdf) echo application/pdf;; *) echo "text/plain; charset=utf-8";; esac)
             npx wrangler r2 object put "homesell-calc-files/sources/$f" --file "data/source/$f" --content-type "$ct" --remote
           done
       - name: 배포
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --var "ASSET_VERSION:${GITHUB_SHA::8}"
+        id: deploy
+        run: |
+          npx wrangler deploy --var "ASSET_VERSION:${GITHUB_SHA::8}" | tee deploy.log
+          url="$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log | head -1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: 상태 확인
         env:
           HEALTH_URL: ${{ vars.HEALTH_URL }}
+          DEPLOYED_URL: ${{ steps.deploy.outputs.url }}
         run: |
-          url="${HEALTH_URL:-https://homesell-calc.richislet.workers.dev/api/health}"
+          url="${HEALTH_URL:-${DEPLOYED_URL}/api/health}"
+          [ -z "$url" ] && { echo "::error::상태 확인 주소를 알 수 없어요"; exit 1; }
           for i in 1 2 3 4 5 6; do
             out="$(curl -fsS -m 15 "$url" || true)"
             echo "$out"

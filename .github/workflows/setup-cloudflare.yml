@@ -1,6 +1,5 @@
-# 처음 한 번 (수동 실행): R2 버킷과 Hyperdrive 를 만든다. 이미 있으면 건너뛴다.
+# (선택) 수동 실행: R2 버킷과 Hyperdrive 를 미리 만든다. 이미 있으면 건너뛴다. — "배포" 워크플로가 같은 일을 하므로 보통 필요 없다.
 # 필요한 Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATABASE_URL (Neon 직접 연결 주소)
-# 끝나면 로그에 나오는 Hyperdrive id 를 저장소 Variables 의 HYPERDRIVE_ID 에 넣는다.
 name: Cloudflare 처음 설정
 
 on:
@@ -43,4 +42,4 @@ jobs:
           else
             npx wrangler hyperdrive create homesell-calc-db --connection-string="$DATABASE_URL" --caching-disabled
           fi
-          echo "::notice::위 출력의 id(32자리 16진수)를 저장소 Settings → Secrets and variables → Actions → Variables 의 HYPERDRIVE_ID 에 넣으세요."
+          echo "::notice::Hyperdrive 준비 완료. 배포 워크플로가 id 를 자동으로 찾아 써요."
