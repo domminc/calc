@@ -3,7 +3,8 @@ import type { Line, Notice } from "../core/types.ts";
 import type { SalaryResult } from "../core/salary.ts";
 import type { PayrollResult } from "../core/payroll.ts";
 import type { InsuranceResult } from "../core/insurance.ts";
-import type { AnnualTaxResult, NetResult, W33Result } from "../core/freelancer.ts";
+import { w33Labels, type AnnualTaxResult, type NetResult, type W33Result } from "../core/freelancer.ts";
+import { pct } from "../core/money.ts";
 import { comma, esc, hangulWon, wonText } from "./html.ts";
 
 export const disclaimer =
@@ -91,7 +92,7 @@ function howSalary(r: SalaryResult): string {
   return `<ol class="how-list"><li>월 총지급액 = 연봉 ${wonText(r.input.mode === "reverse" ? r.monthlyGross * div : r.input.annual)} ÷ ${div} = <b>${wonText(r.monthlyGross)}</b>${r.input.severanceIncluded ? " (퇴직금 포함 연봉)" : ""}</li>
 <li>월 과세급여 = 월 총지급액 − 비과세 ${wonText(r.nonTaxable)} = <b>${wonText(r.taxableMonthly)}</b> (4대보험·소득세의 기준)</li>
 <li>4대보험은 위 급여에 요율을 곱하고 10원 미만을 버려요. 국민연금은 기준소득월액(1,000원 미만 절사, 상·하한 적용)에 곱해요.</li>
-<li>소득세는 국세청 <b>근로소득 간이세액표</b>(소득세법 시행령 별표2, 2026.2.27 개정)에서 월 과세급여 구간과 공제대상가족 수 ${r.input.family}명에 해당하는 값을 그대로 가져와요. 8~20세 자녀는 세액을 추가로 줄여요.</li>
+<li>소득세는 국세청 <b>근로소득 간이세액표</b>(소득세법 시행령 별표2, ${esc(r.withholdingRevision)})에서 월 과세급여 구간과 공제대상가족 수 ${r.input.family}명에 해당하는 값을 그대로 가져와요. 8~20세 자녀는 세액을 추가로 줄여요.</li>
 <li>지방소득세 = 소득세 × 10%</li>
 <li>월 실수령액 = 월 총지급액 − 공제 합계. 연말정산 환급·추가납부는 포함하지 않아요.</li></ol>
 <p class="muted"><a href="/basis">요율표·출처·확인 못 한 항목 보기</a></p>`;
@@ -113,8 +114,8 @@ ${splitBar(r.gross, r.net, r.deductions, `총 지급액 ${wonText(r.gross)} 중 
 <dl class="kv"><div><dt>총 지급액</dt><dd>${wonText(r.gross)}</dd></div><div><dt>비과세</dt><dd>${wonText(r.nonTaxable)}</dd></div><div><dt>과세 급여</dt><dd>${wonText(r.taxable)}</dd></div></dl>
 ${noticeList(r.notices)}
 ${details("어떻게 계산했나요?", hourly
-    ? `<ol class="how-list"><li>주 ${r.input.weeklyHours}시간 근무 → 월 소정근로 ${r.monthlyHours - r.holidayHours}시간, 주휴 ${r.holidayHours}시간 (주 ÷ 40 × 8시간, 15시간 이상, 1주 = 365÷7÷12주)</li><li>월급 = 시급 × (소정근로 + 주휴시간)</li><li>공제 방식에 따라 4대보험·간이세액표 또는 3.3%를 적용해요.</li></ol>`
-    : `<ol class="how-list"><li>통상시급 = (기본급 + 통상임금 포함 수당) ÷ 209시간 (소수점 버림)</li><li>연장근로 = 통상시급 × 1.5, 야간 가산 = × 0.5, 휴일 = × 1.5 (8시간 초과분 × 2.0)</li><li>과세 급여 = 총 지급액 − 비과세. 4대보험은 과세 급여 기준이고 소득세는 간이세액표로 구해요.</li></ol>`)}
+    ? `<ol class="how-list"><li>주 ${r.input.weeklyHours}시간 근무 → 월 소정근로 ${r.monthlyHours - r.holidayHours}시간, 주휴 ${r.holidayHours}시간 (주 ÷ 40 × 8시간, 15시간 이상, 1주 = 365÷7÷12주)</li><li>월급 = 시급 × (소정근로 + 주휴시간)</li><li>공제 방식에 따라 4대보험·간이세액표 또는 사업소득 원천징수를 적용해요.</li></ol>`
+    : `<ol class="how-list"><li>통상시급 = (기본급 + 통상임금 포함 수당) ÷ ${r.paidHours}시간 (소수점 버림)</li><li>연장근로 = 통상시급 × 1.5, 야간 가산 = × 0.5, 휴일 = × 1.5 (8시간 초과분 × 2.0)</li><li>과세 급여 = 총 지급액 − 비과세. 4대보험은 과세 급여 기준이고 소득세는 간이세액표로 구해요.</li></ol>`)}
 <p class="disclaimer">${esc(disclaimer)}</p></div>`;
 }
 
@@ -140,23 +141,25 @@ ${details("계산 근거 보기", `<div class="tbl-wrap" tabindex="0" role="regi
 
 export function renderW33(r: W33Result, year: number, asOf: string): string {
   const w = r.w;
+  const lb = w33Labels(r.rates);
   const lines: Line[] = [
-    { key: "tax", label: "소득세 (3%)", amount: w.tax, basis: "세전 금액 × 3% (원 미만 절사)" },
-    { key: "local", label: "지방소득세 (0.3%)", amount: w.local, basis: "소득세 × 10%" },
+    { key: "tax", label: `소득세 (${lb.income})`, amount: w.tax, basis: `세전 금액 × ${lb.income} (원 미만 절사)` },
+    { key: "local", label: `지방소득세 (${lb.local})`, amount: w.local, basis: `소득세 × ${pct(r.rates.local)}` },
   ];
-  return `<div class="result-inner">${badges(year, asOf)}${hero(r.fromNet ? "필요한 세전 금액" : "실수령액", r.fromNet ? w.gross : w.net, r.fromNet ? `세전 <b>${wonText(w.gross)}</b> → 실수령 <b>${wonText(w.net)}</b>` : `세전 ${wonText(w.gross)} − 원천징수 ${wonText(w.tax + w.local)} (3.3%)`)}
+  return `<div class="result-inner">${badges(year, asOf)}${hero(r.fromNet ? "필요한 세전 금액" : "실수령액", r.fromNet ? w.gross : w.net, r.fromNet ? `세전 <b>${wonText(w.gross)}</b> → 실수령 <b>${wonText(w.net)}</b>` : `세전 ${wonText(w.gross)} − 원천징수 ${wonText(w.tax + w.local)} (${lb.total})`)}
 ${splitBar(w.gross, w.net, lines, `세전 ${wonText(w.gross)} 중 실수령 ${wonText(w.net)}, 원천징수 ${wonText(w.tax + w.local)}`)}
 ${breakdown(lines, "원천징수 합계", w.tax + w.local)}
 ${r.months > 1 ? `<dl class="kv"><div><dt>${r.months}개월 세전</dt><dd>${wonText(r.annualGross)}</dd></div><div><dt>${r.months}개월 실수령</dt><dd>${wonText(r.annualNet)}</dd></div></dl>` : ""}
 ${noticeList(r.notices)}
-<p class="muted">3.3%는 미리 내는 세금이에요. 다음 해 5월 종합소득세 신고에서 실제 세액과 비교해 돌려받거나 더 내요. <a href="/freelancer?tab=tax">5월 정산 계산하기</a></p>
+<p class="muted">${lb.total}는 미리 내는 세금이에요. 다음 해 5월 종합소득세 신고에서 실제 세액과 비교해 돌려받거나 더 내요. <a href="/freelancer?tab=tax">5월 정산 계산하기</a></p>
 <p class="disclaimer">${esc(disclaimer)}</p></div>`;
 }
 
 export function renderAnnualTax(r: AnnualTaxResult, year: number, asOf: string): string {
   const refund = r.settleTotal < 0;
+  const lb = w33Labels(r.w33);
   const steps: Line[] = [
-    { key: "rev", label: "연 수입금액", amount: r.revenue, basis: "3.3% 떼기 전 총수입" },
+    { key: "rev", label: "연 수입금액", amount: r.revenue, basis: `${lb.total} 떼기 전 총수입` },
     { key: "exp", label: "− 필요경비", amount: r.expense, basis: r.input.expenseMode === "rate" ? `수입 × 단순경비율 ${(r.input.expenseRate * 100).toFixed(1)}%` : "실제 경비 입력값(수입 한도)" },
     { key: "inc", label: "= 소득금액", amount: r.income, basis: "수입 − 필요경비" },
     { key: "ded", label: "− 소득공제", amount: r.deductions.total, basis: `기본공제 ${wonText(r.deductions.basic)}${r.deductions.pension ? ` + 국민연금 ${wonText(r.deductions.pension)}` : ""}${r.deductions.other ? ` + 기타 ${wonText(r.deductions.other)}` : ""}` },
@@ -166,7 +169,7 @@ export function renderAnnualTax(r: AnnualTaxResult, year: number, asOf: string):
     { key: "det", label: "= 결정세액", amount: r.determinedTax, basis: "산출세액 − 세액공제" },
     { key: "loc", label: "+ 지방소득세", amount: r.localTax, basis: "결정세액 × 10%" },
     { key: "tot", label: "= 총 부담 세금", amount: r.totalTax, basis: `수입 대비 ${(r.effectiveRate * 100).toFixed(1)}%` },
-    { key: "pre", label: "− 이미 낸 3.3%", amount: r.prepaidTax + r.prepaidLocal, basis: `소득세 ${wonText(r.prepaidTax)} + 지방소득세 ${wonText(r.prepaidLocal)}` },
+    { key: "pre", label: `− 이미 낸 ${lb.total}`, amount: r.prepaidTax + r.prepaidLocal, basis: `소득세 ${wonText(r.prepaidTax)} + 지방소득세 ${wonText(r.prepaidLocal)}` },
   ];
   return `<div class="result-inner">${badges(year, asOf)}${hero(refund ? "예상 환급액" : "예상 추가 납부액", Math.abs(r.settleTotal), `총 부담 세금 <b>${wonText(r.totalTax)}</b> (수입의 ${(r.effectiveRate * 100).toFixed(1)}%) − 이미 낸 ${wonText(r.prepaidTax + r.prepaidLocal)}`)}
 ${breakdown(steps, refund ? "환급 예상 (소득세+지방소득세)" : "추가 납부 예상", Math.abs(r.settleTotal), ["단계", "근거", "금액"])}
@@ -177,10 +180,12 @@ ${details("이 계산에 포함하지 않은 것", `<ul class="how-list"><li>기
 
 export function renderNet(r: NetResult, year: number, asOf: string): string {
   const g = r.regional;
+  const rt = r.rates;
+  const lb = w33Labels(r.tax.w33);
   const lines: Line[] = [
-    { key: "nhis", label: "건강보험 (지역, 월)", amount: g.nhis, basis: `월 소득 ${wonText(g.monthlyIncome)} × 7.19%${g.nhisBadge ? ` · ${g.nhisBadge}` : ""}` },
-    { key: "ltc", label: "장기요양보험 (월)", amount: g.ltc, basis: "건강보험료 × 13.14%" },
-    { key: "nps", label: "국민연금 (지역, 월)", amount: r.regional.nps, basis: `기준소득월액 ${wonText(g.npsBase)} × 9.5%${g.npsBadge ? ` · ${g.npsBadge}` : ""}` },
+    { key: "nhis", label: "건강보험 (지역, 월)", amount: g.nhis, basis: `월 소득 ${wonText(g.monthlyIncome)} × ${pct(rt.nhis.rate)}${g.nhisBadge ? ` · ${g.nhisBadge}` : ""}` },
+    { key: "ltc", label: "장기요양보험 (월)", amount: g.ltc, basis: `건강보험료 × ${(rt.nhis.ltc.rate / rt.nhis.rate * 100).toFixed(2)}%` },
+    { key: "nps", label: "국민연금 (지역, 월)", amount: r.regional.nps, basis: `기준소득월액 ${wonText(g.npsBase)} × ${pct(rt.nps.rate)}${g.npsBadge ? ` · ${g.npsBadge}` : ""}` },
     { key: "tax", label: "종합소득세+지방소득세 (월 환산)", amount: Math.floor(r.tax.totalTax / 12), basis: `연 ${wonText(r.tax.totalTax)} ÷ 12` },
   ];
   const monthlyRevenue = Math.floor(r.tax.revenue / 12);
@@ -189,7 +194,7 @@ export function renderNet(r: NetResult, year: number, asOf: string): string {
 ${splitBar(monthlyRevenue, Math.max(0, r.netMonthly), lines, `월 수입 ${wonText(monthlyRevenue)} 중 실수령 ${wonText(r.netMonthly)}`)}
 ${breakdown(lines, "세금·보험 합계(월)", burdenMonthly)}
 ${noticeList([...r.notices, ...r.tax.notices])}
-<dl class="kv"><div><dt>연 세금 (결정세액+지방세)</dt><dd>${wonText(r.tax.totalTax)}</dd></div><div><dt>이미 낸 3.3%</dt><dd>${wonText(r.tax.prepaidTax + r.tax.prepaidLocal)}</dd></div><div><dt>5월 정산</dt><dd>${r.tax.settleTotal < 0 ? "환급 " : "추가납부 "}${wonText(Math.abs(r.tax.settleTotal))}</dd></div></dl>
+<dl class="kv"><div><dt>연 세금 (결정세액+지방세)</dt><dd>${wonText(r.tax.totalTax)}</dd></div><div><dt>이미 낸 ${lb.total}</dt><dd>${wonText(r.tax.prepaidTax + r.tax.prepaidLocal)}</dd></div><div><dt>5월 정산</dt><dd>${r.tax.settleTotal < 0 ? "환급 " : "추가납부 "}${wonText(Math.abs(r.tax.settleTotal))}</dd></div></dl>
 <p class="muted">건강보험료는 소득 외에 재산(전월세·주택·자동차)에도 부과돼요. 재산 점수를 모르면 0으로 두고 공단 모의계산으로 확인하세요.</p>
 <p class="disclaimer">${esc(disclaimer)}</p></div>`;
 }

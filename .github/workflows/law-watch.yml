@@ -1,0 +1,120 @@
+# 매일 06:00(KST): 계산에 쓰는 법령·고시의 변경/시행예정 개정을 법제처 API 로 확인하고,
+#  - 변경이 있으면 이슈(law-change)를 만든다 (docs/LAW-WATCH.md 의 절차로 반영)
+#  - 근로소득 간이세액표(시행령 별표2)가 새로 개정되면 원문을 받아 표를 만들고 PR 을 연다
+#  - 매월 1일(또는 수동 실행)에는 기계 감시가 안 되는 항목의 점검 이슈(law-manual)를 만든다
+# 필요: 저장소 Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" 켜기
+#       (선택) Secrets LAW_OC — 법제처 OPEN API 인증키 (없으면 공용 키 "test")
+name: 법령 변경 감시
+
+on:
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: law-watch
+  cancel-in-progress: false
+
+env:
+  LAW_OC: ${{ secrets.LAW_OC }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: 라벨 준비
+        run: |
+          gh label create law-change --color B60205 --description "법령·고시 변경 감지" --force
+          gh label create law-manual --color D93F0B --description "수동 점검 알림" --force
+          gh label create law-sync --color 0E8A16 --description "간이세액표 자동 갱신" --force
+
+      - name: 법령·고시 변경 확인
+        id: watch
+        run: |
+          set +e
+          node scripts/law-watch.ts check --out law-report.md
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "2" ]; then echo "::warning::법제처 API 조회 실패가 많아 오늘은 건너뛰었어요."; fi
+          exit 0
+
+      - name: 변경 이슈 만들기/갱신
+        if: steps.watch.outputs.code == '10'
+        run: |
+          hash=$(sha256sum law-report.md | cut -c1-12)
+          existing=$(gh issue list --label law-change --state open --json number,body --jq '.[0] | select(. != null) | "\(.number) \(.body | test("hash:'"$hash"'"))"')
+          body="$(cat law-report.md)
+
+          ---
+          <!-- hash:$hash -->
+          처리 절차: docs/LAW-WATCH.md · 반영 후 \`npm run law:update\` 로 스냅샷을 갱신해 이 이슈를 닫으세요."
+          if [ -z "$existing" ]; then
+            gh issue create --label law-change --title "법령 변경 감지 ($(date -u -d '+9 hours' +%F))" --body "$body"
+          else
+            num=${existing%% *}; same=${existing##* }
+            if [ "$same" != "true" ]; then gh issue edit "$num" --body "$body" && gh issue comment "$num" --body "변경 내용이 갱신됐어요 ($(date -u -d '+9 hours' +%F))."; fi
+          fi
+
+      - name: 간이세액표(별표2) 개정 확인·갱신
+        id: sync
+        run: |
+          sudo apt-get install -y poppler-utils >/dev/null
+          set +e
+          node scripts/sync-withholding.ts
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: 간이세액표 갱신 PR
+        if: steps.sync.outputs.code == '10'
+        run: |
+          git config user.name "calc-law-bot"; git config user.email "noreply@github.com"
+          branch="law-sync/withholding-$(date -u +%Y%m%d)"
+          git checkout -b "$branch"
+          git add -A data src/core/registry.generated.ts
+          git commit -m "data: 근로소득 간이세액표 개정 반영 (자동)"
+          npm test || { echo "::error::테스트 실패 — PR 을 만들지 않고 이슈로 알려요"; testfail=1; }
+          if [ -n "$testfail" ]; then
+            gh issue create --label law-change --title "간이세액표 자동 갱신 실패 (테스트 실패)" --body "원문을 받아 표를 만들었지만 기존 테스트가 실패했어요. 공식 벡터(V-01~V-06)와 기대값을 새 원문 기준으로 갱신해야 해요. 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            exit 0
+          fi
+          git push -u origin "$branch"
+          gh pr create --label law-sync --base main --head "$branch" --title "data: 근로소득 간이세액표 개정 반영 (자동)" --body "법제처 시행령 별표2 새 개정을 감지해 원문 PDF를 받아 표를 갱신했어요.
+
+          - 구간 연속·가족수 단조성 검사 통과, 기존 테스트 통과
+          - **적용 시작일은 '개정 다음 달 1일'로 추정**했어요. 시행령 부칙으로 확인해 \`data/rates/*/withholding.json\` 의 \`effectiveFrom\` 을 맞춰 주세요.
+          - 테스트의 공식 벡터(tests/core/withholding.test.ts V-01~V-06)와 \`UT-W3\` 원문 해시를 새 원문 기준으로 갱신해야 할 수 있어요." || gh issue create --label law-sync --title "간이세액표 갱신 브랜치 $branch (PR 생성 실패)" --body "Actions 의 'PR 생성 허용' 설정을 켜거나 브랜치 $branch 로 직접 PR 을 만드세요."
+
+      - name: 간이세액표 자동 갱신 실패 알림
+        if: steps.sync.outputs.code == '1' || steps.sync.outputs.code == '2'
+        run: |
+          gh issue create --label law-change --title "간이세액표 자동 확인 실패 (코드 ${{ steps.sync.outputs.code }})" --body "별표2 확인/변환에 실패했어요. 수동으로 시행령 별표2 개정 여부를 확인하세요 (docs/LAW-WATCH.md). 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+
+      - name: 월간 수동 점검 이슈
+        if: always()
+        run: |
+          # 매월 1일(KST)에만 (수동 실행은 항상)
+          day=$(date -u -d '+9 hours' +%d)
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ "$day" != "01" ]; then exit 0; fi
+          set +e
+          node scripts/law-manual.ts > manual.md
+          if [ $? = 10 ]; then
+            title="수동 점검 $(date -u -d '+9 hours' +%Y-%m)"
+            if [ -z "$(gh issue list --label law-manual --state all --search "$title in:title" --json number --jq '.[0].number')" ]; then
+              gh issue create --label law-manual --title "$title" --body-file manual.md
+            fi
+          fi
+          exit 0

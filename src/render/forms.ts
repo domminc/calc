@@ -4,7 +4,16 @@ import type { PayrollInput } from "../core/payroll.ts";
 import { MAX_ALLOWANCES } from "../core/payroll.ts";
 import type { FreelancerInput } from "../core/freelancer.ts";
 import type { FieldErrors } from "../core/types.ts";
+import type { Rates } from "../core/rates.ts";
+import { pct } from "../core/money.ts";
+import { w33Labels, w33RatesOf } from "../core/freelancer.ts";
 import { comma, esc, hangulWon } from "./html.ts";
+
+/** 폼 문구에 쓰는 요율 (기준일의 요율 세트) — 문구에 숫자를 직접 쓰지 않고 여기서 읽는다 */
+export interface FormCtx {
+  rates: Rates;
+  year: number;
+}
 
 type Errors = FieldErrors;
 
@@ -61,22 +70,16 @@ export function dateInput(o: { name: string; label: string; value: string; error
   return `<div class="field${o.errors[o.name] ? " has-error" : ""}"><label for="f-${o.name}">${esc(o.label)}</label><input id="f-${o.name}" name="${o.name}" type="date" value="${esc(o.value)}"${o.min ? ` min="${o.min}"` : ""}${o.max ? ` max="${o.max}"` : ""} aria-describedby="e-${o.name}${o.hint ? ` h-${o.name}` : ""}">${o.hint ? `<p class="hint" id="h-${o.name}">${esc(o.hint)}</p>` : ""}${err(o.errors, o.name)}</div>`;
 }
 
-const SIZE_OPTIONS = [
-  { value: "lt150", label: "150인 미만 (0.25%)" },
-  { value: "priority150", label: "150인 이상·우선지원대상 (0.45%)" },
-  { value: "lt1000", label: "150인 이상 1,000인 미만 (0.65%)" },
-  { value: "ge1000", label: "1,000인 이상·공공 (0.85%)" },
-];
-
-export function sizeSelect(value: string): string {
-  return select({ name: "size", label: "사업장 규모 (고용안정·직능개발 요율)", value, options: SIZE_OPTIONS, hint: "근로자 부담에는 영향이 없고 사업주 부담에만 반영돼요." });
+export function sizeSelect(value: string, rates: Rates): string {
+  const options = rates.ei.stabilization.map((s) => ({ value: s.key, label: `${s.label} (${pct(s.rate)})` }));
+  return select({ name: "size", label: "사업장 규모 (고용안정·직능개발 요율)", value, options, hint: "근로자 부담에는 영향이 없고 사업주 부담에만 반영돼요." });
 }
 
 const FAMILY_HINT = "본인·배우자 포함 (소득세 공제 기준)";
 
 // ---------------- 연봉 ----------------
 
-export function salaryForm(i: SalaryInput, errors: Errors): string {
+export function salaryForm(i: SalaryInput, errors: Errors, ctx: FormCtx): string {
   const rev = i.mode === "reverse";
   return `<div class="grp">${segmented({ name: "mode", label: "계산 방향", value: i.mode, options: [{ value: "forward", label: "연봉 → 월 실수령" }, { value: "reverse", label: "월 실수령 → 필요 연봉" }] })}</div>
 <div data-when="mode=forward"${rev ? " hidden" : ""}>${money({ name: "annual", label: "연봉 (세전)", value: i.annual, errors, chips: [{ label: "3,000만", value: 30_000_000 }, { label: "4,000만", value: 40_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "6,000만", value: 60_000_000 }, { label: "8,000만", value: 80_000_000 }, { label: "1억", value: 100_000_000 }] })}</div>
@@ -86,14 +89,16 @@ ${money({ name: "nonTaxable", label: "월 비과세액", value: i.nonTaxableMont
 <div class="two">${stepper({ name: "family", label: "부양가족 수", value: i.family, min: 1, max: 20, unit: "명", hint: FAMILY_HINT, errors })}${stepper({ name: "children", label: "8~20세 자녀 수", value: i.children, min: 0, max: 10, unit: "명", hint: "부양가족에 포함된 자녀", errors })}</div>
 <details class="more"><summary>고급 설정 (기준일·사업주 부담)</summary>
 ${dateInput({ name: "asOf", label: "기준일", value: i.asOf, errors, hint: "국민연금 상·하한은 7월 1일에 바뀌어요." })}
-${sizeSelect(i.size)}
-${decimal({ name: "wciRate", label: "산재보험료율 (사업주)", value: i.wciRate !== undefined ? String(+(i.wciRate * 100).toFixed(4)) : "", suffix: "%", hint: "비워 두면 전 업종 평균 1.47%", errors })}
+${sizeSelect(i.size, ctx.rates)}
+${decimal({ name: "wciRate", label: "산재보험료율 (사업주)", value: i.wciRate !== undefined ? String(+(i.wciRate * 100).toFixed(4)) : "", suffix: "%", hint: `비워 두면 전 업종 평균 ${pct(ctx.rates.wci.defaultRate)}`, errors })}
 </details>`;
 }
 
 // ---------------- 급여 ----------------
 
-export function payrollForm(i: PayrollInput, errors: Errors): string {
+export function payrollForm(i: PayrollInput, errors: Errors, ctx: FormCtx): string {
+  const rt = ctx.rates;
+  const w3 = w33Labels(w33RatesOf(rt));
   const monthly = i.kind === "monthly";
   const rows = (i.allowances.length ? i.allowances : []).map((a, n) => allowanceRow(n, a.name, a.amount, a.nonTaxable, a.ordinary, errors)).join("");
   return `${segmented({ name: "kind", label: "급여 방식", value: i.kind, options: [{ value: "monthly", label: "월급제" }, { value: "hourly", label: "시급제 (아르바이트·계약직)" }] })}
@@ -106,12 +111,12 @@ ${money({ name: "basePay", label: "기본급 (월)", value: i.basePay, errors })
 ${money({ name: "bonus", label: "이번 달 상여 (과세)", value: i.bonus, errors })}
 </div>
 <div data-when="kind=hourly"${monthly ? " hidden" : ""}>
-${money({ name: "wage", label: "시급", value: i.hourlyWage, errors, hint: "2026년 최저시급 10,320원 (2027년 10,700원)", chips: [{ label: "최저시급", value: 10_320 }, { label: "11,000", value: 11_000 }, { label: "12,000", value: 12_000 }, { label: "15,000", value: 15_000 }] })}
-${decimal({ name: "weekly", label: "주 소정근로시간", value: String(i.weeklyHours), suffix: "시간", hint: "주 15시간 이상이면 주휴수당이 있어요. 주 40시간 = 월 209시간.", errors })}
+${money({ name: "wage", label: "시급", value: i.hourlyWage, errors, hint: `${ctx.year}년 최저시급 ${comma(rt.labor.minHourlyWage)}원`, chips: [{ label: "최저시급", value: rt.labor.minHourlyWage }, { label: "11,000", value: 11_000 }, { label: "12,000", value: 12_000 }, { label: "15,000", value: 15_000 }] })}
+${decimal({ name: "weekly", label: "주 소정근로시간", value: String(i.weeklyHours), suffix: "시간", hint: "주 15시간 이상이면 주휴수당이 있어요. 주 40시간 = 월 ${rt.labor.monthlyPaidHours}시간.", errors })}
 </div>
-${segmented({ name: "deduction", label: "공제 방식", value: i.deductionMode, options: [{ value: "insurance", label: "4대보험+세금" }, { value: "tax33", label: "3.3% 원천징수" }, { value: "none", label: "공제 없음" }] })}
+${segmented({ name: "deduction", label: "공제 방식", value: i.deductionMode, options: [{ value: "insurance", label: "4대보험+세금" }, { value: "tax33", label: `${w3.total} 원천징수` }, { value: "none", label: "공제 없음" }] })}
 <div class="two">${stepper({ name: "family", label: "부양가족 수", value: i.family, min: 1, max: 20, unit: "명", hint: FAMILY_HINT, errors })}${stepper({ name: "children", label: "8~20세 자녀 수", value: i.children, min: 0, max: 10, unit: "명", errors })}</div>
-<details class="more"><summary>고급 설정 (기준일·사업장 규모)</summary>${dateInput({ name: "asOf", label: "기준일", value: i.asOf, errors })}${sizeSelect(i.size)}</details>`;
+<details class="more"><summary>고급 설정 (기준일·사업장 규모)</summary>${dateInput({ name: "asOf", label: "기준일", value: i.asOf, errors })}${sizeSelect(i.size, ctx.rates)}</details>`;
 }
 
 function hours(name: string, label: string, value: number, errors: Errors): string {
@@ -128,33 +133,35 @@ export function allowanceRow(n: number, name: string, amount: number | string, n
 
 // ---------------- 4대보험 ----------------
 
-export function insuranceForm(v: { monthly: number; asOf: string; size: string; wci: string }, errors: Errors): string {
+export function insuranceForm(v: { monthly: number; asOf: string; size: string; wci: string }, errors: Errors, ctx: FormCtx): string {
   return `${money({ name: "monthly", label: "월 보수 (비과세 제외)", value: v.monthly, errors, hint: "세전 월급에서 식대 등 비과세를 뺀 금액이에요.", chips: [{ label: "200만", value: 2_000_000 }, { label: "300만", value: 3_000_000 }, { label: "400만", value: 4_000_000 }, { label: "500만", value: 5_000_000 }, { label: "700만", value: 7_000_000 }] })}
 ${dateInput({ name: "asOf", label: "기준일", value: v.asOf, errors, hint: "국민연금 기준소득월액 상·하한이 7월 1일에 바뀌어요." })}
-${sizeSelect(v.size)}
-${decimal({ name: "wciRate", label: "산재보험료율 (사업주)", value: v.wci, suffix: "%", hint: "업종별로 달라요(근로복지공단 고시). 비워 두면 전 업종 평균 1.47%.", errors })}`;
+${sizeSelect(v.size, ctx.rates)}
+${decimal({ name: "wciRate", label: "산재보험료율 (사업주)", value: v.wci, suffix: "%", hint: `업종별로 달라요(근로복지공단 고시). 비워 두면 전 업종 평균 ${pct(ctx.rates.wci.defaultRate)}.`, errors })}`;
 }
 
 // ---------------- 프리랜서 ----------------
 
-export function freelancerForm(i: FreelancerInput, errors: Errors): string {
+export function freelancerForm(i: FreelancerInput, errors: Errors, ctx: FormCtx): string {
   const t = i.tab;
-  return `${segmented({ name: "tab", label: "무엇을 계산할까요?", value: t, options: [{ value: "w33", label: "3.3% 원천징수" }, { value: "tax", label: "5월 종합소득세" }, { value: "net", label: "월 실수령 종합" }] })}
+  const rt = ctx.rates;
+  const w3 = w33Labels(w33RatesOf(rt));
+  return `${segmented({ name: "tab", label: "무엇을 계산할까요?", value: t, options: [{ value: "w33", label: `${w3.total} 원천징수` }, { value: "tax", label: "5월 종합소득세" }, { value: "net", label: "월 실수령 종합" }] })}
 <div data-when="tab=w33"${t === "w33" ? "" : " hidden"}>
 ${segmented({ name: "amountMode", label: "입력할 금액", value: i.amountMode, options: [{ value: "gross", label: "세전 금액 → 실수령" }, { value: "net", label: "받고 싶은 실수령 → 세전" }] })}
 ${money({ name: "amount", label: i.amountMode === "net" ? "받고 싶은 실수령 금액" : "세전 금액 (계약 금액)", value: i.amount, errors, chips: [{ label: "100만", value: 1_000_000 }, { label: "300만", value: 3_000_000 }, { label: "500만", value: 5_000_000 }, { label: "1,000만", value: 10_000_000 }] })}
 ${stepper({ name: "months", label: "연 환산 개월 수", value: i.months, min: 1, max: 12, unit: "개월", errors })}
 </div>
 <div data-when="tab=tax|net"${t === "w33" ? " hidden" : ""}>
-${money({ name: "revenue", label: "연 수입금액 (3.3% 떼기 전)", value: i.revenue, errors, chips: [{ label: "2,400만", value: 24_000_000 }, { label: "3,600만", value: 36_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "7,000만", value: 70_000_000 }, { label: "1억", value: 100_000_000 }] })}
+${money({ name: "revenue", label: `연 수입금액 (${w3.total} 떼기 전)`, value: i.revenue, errors, chips: [{ label: "2,400만", value: 24_000_000 }, { label: "3,600만", value: 36_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "7,000만", value: 70_000_000 }, { label: "1억", value: 100_000_000 }] })}
 ${segmented({ name: "expenseMode", label: "필요경비 방식", value: i.expenseMode, options: [{ value: "rate", label: "단순경비율" }, { value: "actual", label: "실제 경비" }] })}
-<div data-when="expenseMode=rate"${i.expenseMode === "rate" ? "" : " hidden"}>${decimal({ name: "expenseRate", label: "단순경비율", value: String(+(i.expenseRate * 100).toFixed(2)), suffix: "%", hint: "업종코드별로 달라요. 기본값 64.1%는 예시(940909 기타 자영업)예요. 홈택스 경비율 조회 값으로 바꿔 주세요.", errors })}</div>
+<div data-when="expenseMode=rate"${i.expenseMode === "rate" ? "" : " hidden"}>${decimal({ name: "expenseRate", label: "단순경비율", value: String(+(i.expenseRate * 100).toFixed(2)), suffix: "%", hint: `업종코드별로 달라요. 기본값 ${pct(rt.freelancer.defaultSimpleExpenseRate)}는 예시예요(${rt.freelancer.defaultSimpleExpenseNote.split(".")[0]}). 홈택스 경비율 조회 값으로 바꿔 주세요.`, errors })}</div>
 <div data-when="expenseMode=actual"${i.expenseMode === "actual" ? "" : " hidden"}>${money({ name: "actualExpense", label: "실제 경비 (증빙 가능한 금액)", value: i.actualExpense, errors })}</div>
 <div class="two">${stepper({ name: "persons", label: "부양가족 수", value: i.persons, min: 1, max: 20, unit: "명", hint: "본인 포함 (1인당 기본공제 150만원)", errors })}${stepper({ name: "children", label: "8세 이상 자녀 수", value: i.children, min: 0, max: 10, unit: "명", errors })}</div>
 <div data-when="tab=tax"${t === "tax" ? "" : " hidden"}>${money({ name: "pension", label: "납부한 국민연금 (연)", value: i.pensionPaid, errors, optional: true, hint: "연금보험료공제로 소득에서 전액 빠져요." })}</div>
 <div data-when="tab=net"${t === "net" ? "" : " hidden"}>
 ${money({ name: "cashExpense", label: "실제로 쓴 사업 경비 (연)", value: i.cashExpense, errors, optional: true, hint: "단순경비율은 세법상 경비일 뿐이라, 실제 지출만 따로 적어요." })}
-${decimal({ name: "propertyScore", label: "재산 보험료 부과점수", value: String(i.propertyScore), suffix: "점", hint: "모르면 0. 공단 모의계산에서 확인할 수 있어요. 1점 = 211.5원.", errors })}
+${decimal({ name: "propertyScore", label: "재산 보험료 부과점수", value: String(i.propertyScore), suffix: "점", hint: "모르면 0. 공단 모의계산에서 확인할 수 있어요. 1점 = ${rt.nhis.regionalScoreUnitPrice}원.", errors })}
 ${check({ name: "regionalNps", label: "지역가입자 국민연금 포함", checked: i.useRegionalNps, hint: "납부예외이거나 가입 대상이 아니면 해제하세요." })}
 </div>
 <details class="more"><summary>고급 설정 (기납부세액·기타 공제·기준일)</summary>

@@ -6,7 +6,7 @@ import { calcSalary, parseSalaryInput, solveAnnualForNet } from "../core/salary.
 import { calcPayroll, parsePayrollInput } from "../core/payroll.ts";
 import { calcInsurance } from "../core/insurance.ts";
 import { parseInsuranceInput } from "../core/insurance-input.ts";
-import { calcNet, calcTab, calcW33, parseFreelancerInput } from "../core/freelancer.ts";
+import { calcNet, calcTab, calcW33, parseFreelancerInput, w33Labels } from "../core/freelancer.ts";
 import { CALCS } from "./meta.ts";
 import { disclaimer } from "../render/result.ts";
 
@@ -107,12 +107,12 @@ export function buildReport(key: CalcKey, raw: Raw): Report | null {
       const resolved = resolveRates(p.value.asOf);
       const head = `${resolved.set.year}년 기준 · 기준일 ${resolved.asOf}`;
       if (p.value.tab === "w33") {
-        const r = calcW33(p.value);
+        const r = calcW33(p.value, resolved.set.rates);
         return {
-          key, title: "프리랜서 3.3% 계산 결과", subtitle: head,
+          key, title: `프리랜서 ${w33Labels(r.rates).total} 계산 결과`, subtitle: head,
           hero: { label: r.fromNet ? "필요한 세전 금액" : "실수령액", value: r.fromNet ? r.w.gross : r.w.net, unit: "원" },
           inputs: [["입력", `${r.fromNet ? "실수령" : "세전"} ${won(p.value.amount)}`]],
-          sections: [{ heading: "원천징수", columns: ["항목", "금액"], rows: [["세전 금액", r.w.gross], ["소득세 3%", r.w.tax], ["지방소득세 0.3%", r.w.local], ["실수령액", r.w.net]] }],
+          sections: [{ heading: "원천징수", columns: ["항목", "금액"], rows: [["세전 금액", r.w.gross], [`소득세 ${w33Labels(r.rates).income}`, r.w.tax], [`지방소득세 ${w33Labels(r.rates).local}`, r.w.local], ["실수령액", r.w.net]] }],
           notes: [...r.notices.map((n) => n.text), disclaimer], fileName: `프리랜서3.3_${r.w.gross}`,
         };
       }
@@ -122,7 +122,7 @@ export function buildReport(key: CalcKey, raw: Raw): Report | null {
           key, title: "5월 종합소득세 정산 예상", subtitle: head,
           hero: { label: r.settleTotal < 0 ? "예상 환급액" : "예상 추가 납부액", value: Math.abs(r.settleTotal), unit: "원" },
           inputs: [["연 수입금액", won(r.revenue)], ["필요경비", won(r.expense)], ["부양가족", `${p.value.persons}명 (자녀 ${p.value.children}명)`]],
-          sections: [{ heading: "정산 단계", columns: ["단계", "금액"], rows: [["소득금액", r.income], ["소득공제", r.deductions.total], ["과세표준", r.taxBase], ["산출세액", r.computedTax], ["세액공제", r.credits.total], ["결정세액", r.determinedTax], ["지방소득세", r.localTax], ["이미 낸 3.3%", r.prepaidTax + r.prepaidLocal], ["정산(+추가납부/−환급)", r.settleTotal]] }],
+          sections: [{ heading: "정산 단계", columns: ["단계", "금액"], rows: [["소득금액", r.income], ["소득공제", r.deductions.total], ["과세표준", r.taxBase], ["산출세액", r.computedTax], ["세액공제", r.credits.total], ["결정세액", r.determinedTax], ["지방소득세", r.localTax], [`이미 낸 ${w33Labels(r.w33).total}`, r.prepaidTax + r.prepaidLocal], ["정산(+추가납부/−환급)", r.settleTotal]] }],
           notes: [...r.notices.map((n) => n.text), disclaimer], fileName: `종합소득세_${r.revenue}`,
         };
       }

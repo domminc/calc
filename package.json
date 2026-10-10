@@ -5,9 +5,9 @@
   "type": "module",
   "description": "homesell 계산기 — 연봉·급여·4대보험·프리랜서 (Cloudflare Workers + Neon + R2)",
   "scripts": {
-    "build:data": "node scripts/build-withholding.mjs 2026",
+    "build:data": "node scripts/build-withholding.mjs 2026 2026-03-01 && node scripts/build-registry.mjs",
     "build:client": "node scripts/build-client.mjs",
-    "build": "npm run build:client",
+    "build": "npm run build:registry && npm run build:client",
     "dev": "npm run build:client && wrangler dev --local",
     "deploy": "node scripts/migrate.mjs && npm run build && wrangler deploy",
     "db:migrate": "node scripts/migrate.mjs",
@@ -15,7 +15,11 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.client.json",
     "test": "vitest run",
     "test:db": "scripts/test-db.sh",
-    "test:e2e": "scripts/e2e.sh"
+    "test:e2e": "scripts/e2e.sh",
+    "build:registry": "node scripts/build-registry.mjs",
+    "law:check": "node scripts/law-watch.ts check",
+    "law:update": "node scripts/law-watch.ts update",
+    "law:sync": "node scripts/sync-withholding.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

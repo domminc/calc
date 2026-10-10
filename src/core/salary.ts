@@ -63,6 +63,8 @@ export function parseSalaryInput(raw: Raw): Parsed<SalaryInput> {
 export interface SalaryResult {
   input: SalaryInput;
   ratesYear: number;
+  /** 간이세액표 개정 정보 (예: "2026-02-27 개정 (2026-03-01 시행분부터)") */
+  withholdingRevision: string;
   asOf: string;
   /** 월 총지급액 (비과세 포함) */
   monthlyGross: number;
@@ -109,9 +111,6 @@ function build(
   });
   const wh = withholdingTax(resolved.set.withholding, m.taxableMonthly, input.family, input.children);
   const notices: Notice[] = [...ins.notices];
-  if (resolved.fallback) {
-    notices.push({ level: "warn", code: "rates-fallback", text: `${resolved.fallback.requestedYear}년 요율은 아직 없어 ${resolved.fallback.usedYear}년 기준으로 계산했어요.` });
-  }
   if (wh.zeroBand) notices.push({ level: "info", code: "tax-zero", text: "월 과세급여가 770천원 미만이라 간이세액표상 소득세가 0원이에요." });
   if (input.nonTaxableMonthly > m.monthlyGross) notices.push({ level: "warn", code: "nontax-capped", text: "비과세액이 월 급여보다 커서 월 급여까지만 반영했어요." });
   if (input.nonTaxableMonthly > rates.taxFree.mealMonthly) notices.push({ level: "info", code: "nontax-meal", text: `비과세 식대 한도는 월 ${rates.taxFree.mealMonthly.toLocaleString("ko-KR")}원이에요. 식대 외 비과세(차량보조·육아수당 등)가 있다면 그대로 두세요.` });
@@ -128,6 +127,7 @@ function build(
   return {
     input,
     ratesYear: resolved.set.year,
+    withholdingRevision: resolved.set.withholding.revision,
     asOf: resolved.asOf,
     monthlyGross: m.monthlyGross,
     nonTaxable: m.nonTaxable,

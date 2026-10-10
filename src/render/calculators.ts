@@ -1,14 +1,14 @@
 // 계산기 레지스트리: 입력(raw) → 결과 HTML. 서버(SSR)와 브라우저(즉시 갱신)가 같은 함수를 쓴다.
 import type { Raw } from "../core/inputs.ts";
 import type { FieldErrors } from "../core/types.ts";
-import { resolveRates } from "../core/rates.ts";
+import { rateNotices, resolveRates, type Resolved } from "../core/rates.ts";
 import { calcSalary, parseSalaryInput, solveAnnualForNet } from "../core/salary.ts";
 import { calcPayroll, parsePayrollInput, MAX_ALLOWANCES } from "../core/payroll.ts";
 import { calcInsurance } from "../core/insurance.ts";
 import { parseInsuranceInput } from "../core/insurance-input.ts";
 import { calcNet, calcTab, calcW33, parseFreelancerInput } from "../core/freelancer.ts";
 import { esc, wonText } from "./html.ts";
-import { adjustedList, renderAnnualTax, renderInsurance, renderNet, renderPayroll, renderSalary, renderW33 } from "./result.ts";
+import { adjustedList, noticeList, renderAnnualTax, renderInsurance, renderNet, renderPayroll, renderSalary, renderW33 } from "./result.ts";
 
 export type CalcKey = "salary" | "payroll" | "insurance" | "freelancer";
 export const CALC_KEYS: readonly CalcKey[] = ["salary", "payroll", "insurance", "freelancer"];
@@ -55,7 +55,19 @@ function errorPanel(errors: FieldErrors): string {
   return `<div class="result-inner"><div class="result-error" role="alert"><p><b>입력값을 확인해 주세요.</b></p><ul>${items}</ul></div></div>`;
 }
 
+/** 요율 세트 안내(잠정 요율·간이세액표 시행 전·대체 연도)를 결과 맨 위에 붙인다 */
+function withRateNotices(out: ComputeOutput, resolved: Resolved): ComputeOutput {
+  const ns = rateNotices(resolved);
+  if (!ns.length || !out.ok) return out;
+  return { ...out, html: out.html.replace('<div class="result-inner">', `<div class="result-inner">${noticeList(ns)}`) };
+}
+
 export function compute(key: CalcKey, raw: Raw): ComputeOutput {
+  const out = computeInner(key, raw);
+  return out.resolved ? withRateNotices(out, out.resolved) : out;
+}
+
+function computeInner(key: CalcKey, raw: Raw): ComputeOutput & { resolved?: Resolved } {
   switch (key) {
     case "salary": {
       const p = parseSalaryInput(raw);
@@ -65,17 +77,18 @@ export function compute(key: CalcKey, raw: Raw): ComputeOutput {
         const s = solveAnnualForNet(p.value, resolved);
         return {
           html: adjustedList(p.adjusted) + renderSalary(s.result, { reverse: { annual: s.annual, reachable: s.reachable } }),
-          errors: {}, adjusted: p.adjusted, summary: { label: "필요 연봉", value: wonText(s.annual) }, ok: true,
+          errors: {}, adjusted: p.adjusted, summary: { label: "필요 연봉", value: wonText(s.annual) }, ok: true, resolved,
         };
       }
       const r = calcSalary(p.value, resolved);
-      return { html: adjustedList(p.adjusted) + renderSalary(r), errors: {}, adjusted: p.adjusted, summary: { label: "월 실수령", value: wonText(r.netMonthly) }, ok: true };
+      return { html: adjustedList(p.adjusted) + renderSalary(r), errors: {}, adjusted: p.adjusted, summary: { label: "월 실수령", value: wonText(r.netMonthly) }, ok: true, resolved };
     }
     case "payroll": {
       const p = parsePayrollInput(raw);
       if (Object.keys(p.errors).length) return { html: errorPanel(p.errors), errors: p.errors, adjusted: p.adjusted, summary: null, ok: false };
-      const r = calcPayroll(p.value, resolveRates(p.value.asOf));
-      return { html: adjustedList(p.adjusted) + renderPayroll(r), errors: {}, adjusted: p.adjusted, summary: { label: "차인지급액", value: wonText(r.net) }, ok: true };
+      const resolved = resolveRates(p.value.asOf);
+      const r = calcPayroll(p.value, resolved);
+      return { html: adjustedList(p.adjusted) + renderPayroll(r), errors: {}, adjusted: p.adjusted, summary: { label: "차인지급액", value: wonText(r.net) }, ok: true, resolved };
     }
     case "insurance": {
       const p = parseInsuranceInput(raw);
@@ -84,7 +97,7 @@ export function compute(key: CalcKey, raw: Raw): ComputeOutput {
       const r = calcInsurance(resolved.set.rates, { taxableMonthly: p.value.monthly, asOf: resolved.asOf, size: p.value.size, ...(p.value.wciRate !== undefined ? { wciRate: p.value.wciRate } : {}) });
       return {
         html: renderInsurance(r, { year: resolved.set.year, asOf: resolved.asOf, taxableMonthly: p.value.monthly }),
-        errors: {}, adjusted: [], summary: { label: "근로자 부담", value: wonText(r.workerTotal) }, ok: true,
+        errors: {}, adjusted: [], summary: { label: "근로자 부담", value: wonText(r.workerTotal) }, ok: true, resolved,
       };
     }
     case "freelancer": {
@@ -93,15 +106,15 @@ export function compute(key: CalcKey, raw: Raw): ComputeOutput {
       const resolved = resolveRates(p.value.asOf);
       const year = resolved.set.year;
       if (p.value.tab === "w33") {
-        const r = calcW33(p.value);
-        return { html: renderW33(r, year, resolved.asOf), errors: {}, adjusted: [], summary: { label: r.fromNet ? "필요 세전" : "실수령", value: wonText(r.fromNet ? r.w.gross : r.w.net) }, ok: true };
+        const r = calcW33(p.value, resolved.set.rates);
+        return { html: renderW33(r, year, resolved.asOf), errors: {}, adjusted: [], summary: { label: r.fromNet ? "필요 세전" : "실수령", value: wonText(r.fromNet ? r.w.gross : r.w.net) }, ok: true, resolved };
       }
       if (p.value.tab === "tax") {
         const r = calcTab(p.value, resolved);
-        return { html: adjustedList(p.adjusted) + renderAnnualTax(r, year, resolved.asOf), errors: {}, adjusted: p.adjusted, summary: { label: r.settleTotal < 0 ? "예상 환급" : "추가 납부", value: wonText(Math.abs(r.settleTotal)) }, ok: true };
+        return { html: adjustedList(p.adjusted) + renderAnnualTax(r, year, resolved.asOf), errors: {}, adjusted: p.adjusted, summary: { label: r.settleTotal < 0 ? "예상 환급" : "추가 납부", value: wonText(Math.abs(r.settleTotal)) }, ok: true, resolved };
       }
       const r = calcNet(p.value, resolved);
-      return { html: adjustedList(p.adjusted) + renderNet(r, year, resolved.asOf), errors: {}, adjusted: p.adjusted, summary: { label: "월 실수령", value: wonText(r.netMonthly) }, ok: true };
+      return { html: adjustedList(p.adjusted) + renderNet(r, year, resolved.asOf), errors: {}, adjusted: p.adjusted, summary: { label: "월 실수령", value: wonText(r.netMonthly) }, ok: true, resolved };
     }
   }
 }

@@ -3,9 +3,29 @@ import { resolveRates, todayKst, type Rates, type Resolved } from "./rates.ts";
 import { npsLimitsAt } from "./rates.ts";
 import type { FieldErrors, Notice, Parsed } from "./types.ts";
 import { dateField, fixFamily, intField, parsed, toBool, toNumber, type Raw } from "./inputs.ts";
-import { clamp, floor10, floor1000, mulPpm, ppm } from "./money.ts";
+import { clamp, floor10, floor1000, mulPpm, pct, ppm } from "./money.ts";
 
-// ---------- 3.3% 원천징수 ----------
+// ---------- 사업소득 원천징수 (3.3%) ----------
+
+/** 원천징수 세율. 법이 바뀌면(예: 3%→2%) data/rates 의 freelancer.withholdingIncome 만 바꾼다. */
+export interface W33Rates {
+  /** 소득세율 (0.03) */
+  income: number;
+  /** 지방소득세율: 소득세의 비율 (0.1) */
+  local: number;
+}
+
+/** 시험용 기본값 — 운영 코드는 항상 요율 세트에서 읽는다 (w33RatesOf) */
+export const W33_2026: W33Rates = { income: 0.03, local: 0.1 };
+
+export function w33RatesOf(rates: Rates): W33Rates {
+  return { income: rates.freelancer.withholdingIncome, local: rates.freelancer.withholdingLocal };
+}
+
+/** 표시용: 합계 세율 "3.3%", 소득세율 "3%", 지방소득세율 "0.3%" */
+export function w33Labels(r: W33Rates): { total: string; income: string; local: string } {
+  return { total: pct(r.income * (1 + r.local)), income: pct(r.income), local: pct(r.income * r.local) };
+}
 
 export interface Withholding33 {
   gross: number;
@@ -16,30 +36,31 @@ export interface Withholding33 {
   exempt: boolean;
 }
 
-export function withholding33(gross: number): Withholding33 {
+export function withholding33(gross: number, r: W33Rates = W33_2026): Withholding33 {
   const g = Math.max(0, Math.floor(gross));
-  let tax = Math.floor((g * 3) / 100);
+  let tax = mulPpm(g, ppm(r.income));
   let exempt = false;
   if (tax < 1000) {
     tax = 0;
     exempt = g > 0;
   }
-  const local = Math.floor(tax / 10);
+  const local = mulPpm(tax, ppm(r.local));
   return { gross: g, tax, local, net: g - tax - local, exempt };
 }
 
 /**
  * 실수령 → 세전 금액.
- * 같은 실수령을 만드는 세전이 여럿이면(단수처리 때문) net/0.967 에 가장 가까운 값,
+ * 같은 실수령을 만드는 세전이 여럿이면(단수처리 때문) net/(1−합계세율) 에 가장 가까운 값,
  * 정확히 맞는 값이 없으면 실수령 이상이 되는 최소 세전액.
  */
-export function grossFromNet33(net: number): number {
+export function grossFromNet33(net: number, r: W33Rates = W33_2026): number {
   const n = Math.max(0, Math.floor(net));
-  const g0 = Math.round(n / 0.967);
+  const keep = 1 - r.income * (1 + r.local);
+  const g0 = Math.round(n / keep);
   let best: number | undefined;
   for (let d = 0; d <= 6; d++) {
     for (const g of d === 0 ? [g0] : [g0 - d, g0 + d]) {
-      if (g >= 0 && withholding33(g).net === n) {
+      if (g >= 0 && withholding33(g, r).net === n) {
         best = g;
         break;
       }
@@ -47,8 +68,8 @@ export function grossFromNet33(net: number): number {
     if (best !== undefined) break;
   }
   if (best !== undefined) return best;
-  let g = Math.ceil(n / 0.967) + 2;
-  while (g > 0 && withholding33(g - 1).net >= n) g--;
+  let g = Math.ceil(n / keep) + 2;
+  while (g > 0 && withholding33(g - 1, r).net >= n) g--;
   return g;
 }
 
@@ -73,6 +94,8 @@ export interface AnnualTaxInput {
 
 export interface AnnualTaxResult {
   input: AnnualTaxInput;
+  /** 기납부(원천징수) 세율 — 화면 문구용 */
+  w33: W33Rates;
   revenue: number;
   expense: number;
   income: number;
@@ -118,16 +141,18 @@ export function calcAnnualTax(rates: Rates, input: AnnualTaxInput): AnnualTaxRes
   const credits = { child: childC, standard, total: childC + standard };
   const determinedTax = Math.max(0, br.tax - credits.total);
   const localTax = floor10(determinedTax * rates.incomeTax.localTaxRatio);
-  const prepaidTax = input.prepaidOverride ?? Math.floor((revenue * 3) / 100);
-  const prepaidLocal = Math.floor(prepaidTax / 10);
+  const w33 = w33RatesOf(rates);
+  const prepaidTax = input.prepaidOverride ?? mulPpm(revenue, ppm(w33.income));
+  const prepaidLocal = mulPpm(prepaidTax, ppm(w33.local));
   const settleIncomeTax = determinedTax - prepaidTax;
   const settleLocalTax = localTax - prepaidLocal;
   const settleTotal = settleIncomeTax + settleLocalTax;
   if (income <= 0) notices.push({ level: "info", code: "no-income", text: "필요경비가 수입 이상이라 소득금액이 0원이에요." });
-  if (taxBase === 0 && prepaidTax > 0) notices.push({ level: "info", code: "all-refund", text: "과세표준이 0원이라 미리 낸 3.3%를 전액 환급받을 수 있어요(신고 필요)." });
+  if (taxBase === 0 && prepaidTax > 0) notices.push({ level: "info", code: "all-refund", text: `과세표준이 0원이라 미리 낸 ${w33Labels(w33RatesOf(rates)).total}를 전액 환급받을 수 있어요(신고 필요).` });
   if (input.expenseMode === "rate" && input.expenseRate >= 0.9) notices.push({ level: "warn", code: "rate-high", text: "경비율이 90% 이상이에요. 업종별 단순경비율 고시값이 맞는지 확인해 주세요." });
   return {
     input,
+    w33,
     revenue,
     expense,
     income,
@@ -235,7 +260,8 @@ export function parseFreelancerInput(raw: Raw): Parsed<FreelancerInput> {
   const revenue = intField(raw, { field: "revenue", label: "연 수입금액", required: true, def: 36_000_000, min: 0, max: 100_000_000_000, errors });
   const expenseMode: ExpenseMode = raw.expenseMode === "actual" ? "actual" : "rate";
   const ratePctRaw = toNumber(raw.expenseRate);
-  let expenseRate = 0.641;
+  const asOfDate = dateField(raw, "asOf", todayKst(), errors);
+  let expenseRate = resolveRates(asOfDate).set.rates.freelancer.defaultSimpleExpenseRate;
   if (ratePctRaw !== undefined) {
     if (Number.isNaN(ratePctRaw) || ratePctRaw < 0 || ratePctRaw > 100) errors.expenseRate = "경비율은 0~100% 사이로 입력해 주세요.";
     else expenseRate = ratePctRaw / 100;
@@ -255,7 +281,7 @@ export function parseFreelancerInput(raw: Raw): Parsed<FreelancerInput> {
   const propertyScore = intField(raw, { field: "propertyScore", label: "재산 부과점수", def: 0, min: 0, max: 100_000_000, errors, integer: false });
   const cashExpense = intField(raw, { field: "cashExpense", label: "실제 지출 경비", def: 0, min: 0, max: 100_000_000_000, errors });
   return parsed(
-    { tab, amountMode, amount, months, revenue, expenseMode, expenseRate, actualExpense, persons, children, pensionPaid, otherDeduction, prepaidOverride, propertyScore, cashExpense, useRegionalNps: toBool(raw.regionalNps, true), asOf: dateField(raw, "asOf", todayKst(), errors) },
+    { tab, amountMode, amount, months, revenue, expenseMode, expenseRate, actualExpense, persons, children, pensionPaid, otherDeduction, prepaidOverride, propertyScore, cashExpense, useRegionalNps: toBool(raw.regionalNps, true), asOf: asOfDate },
     errors,
     adjusted,
   );
@@ -263,6 +289,8 @@ export function parseFreelancerInput(raw: Raw): Parsed<FreelancerInput> {
 
 export interface W33Result {
   w: Withholding33;
+  /** 이 계산에 쓴 원천징수 세율 (화면 문구용) */
+  rates: W33Rates;
   /** 입력 방식이 실수령 → 세전이었는지 */
   fromNet: boolean;
   months: number;
@@ -271,16 +299,19 @@ export interface W33Result {
   notices: Notice[];
 }
 
-export function calcW33(input: FreelancerInput): W33Result {
+export function calcW33(input: FreelancerInput, rates: Rates): W33Result {
+  const r = w33RatesOf(rates);
   const fromNet = input.amountMode === "net";
-  const gross = fromNet ? grossFromNet33(input.amount) : input.amount;
-  const w = withholding33(gross);
+  const gross = fromNet ? grossFromNet33(input.amount, r) : input.amount;
+  const w = withholding33(gross, r);
   const notices: Notice[] = [];
   if (w.exempt) notices.push({ level: "info", code: "exempt", text: "소득세가 1,000원 미만이라 원천징수하지 않아요(소액부징수)." });
-  return { w, fromNet, months: input.months, annualGross: w.gross * input.months, annualNet: w.net * input.months, notices };
+  return { w, rates: r, fromNet, months: input.months, annualGross: w.gross * input.months, annualNet: w.net * input.months, notices };
 }
 
 export interface NetResult {
+  /** 계산에 쓴 요율 (화면 문구용) */
+  rates: Rates;
   regional: RegionalResult;
   tax: AnnualTaxResult;
   /** 연 부담 합계 */
@@ -320,6 +351,7 @@ export function calcNet(input: FreelancerInput, resolved: Resolved = resolveRate
   ];
   if (!input.useRegionalNps) notices.push({ level: "info", code: "nps-excluded", text: "국민연금을 제외하고 계산했어요(납부예외 또는 가입 대상이 아닌 경우)." });
   return {
+    rates,
     regional,
     tax,
     annualBurden,

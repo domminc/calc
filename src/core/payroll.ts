@@ -2,8 +2,9 @@
 import { resolveRates, todayKst, type Resolved } from "./rates.ts";
 import { calcInsurance, workerLines } from "./insurance.ts";
 import { withholdingTax } from "./withholding.ts";
-import { withholding33 } from "./freelancer.ts";
+import { w33Labels, w33RatesOf, withholding33 } from "./freelancer.ts";
 import type { CompanySize, FieldErrors, Line, Notice, Parsed } from "./types.ts";
+import { pct } from "./money.ts";
 import { dateField, fixFamily, intField, parsed, sizeField, toBool, toNumber, type Raw } from "./inputs.ts";
 
 export const MAX_ALLOWANCES = 10;
@@ -61,7 +62,8 @@ export function parsePayrollInput(raw: Raw): Parsed<PayrollInput> {
   const holidayHours = intField(raw, { field: "holiday", label: "휴일근로(8시간 이내)", def: 0, min: 0, max: 200, errors, integer: false });
   const holidayOver8Hours = intField(raw, { field: "holiday8", label: "휴일근로(8시간 초과)", def: 0, min: 0, max: 200, errors, integer: false });
   const bonus = intField(raw, { field: "bonus", label: "상여", def: 0, min: 0, max: 5_000_000_000, errors });
-  const hourlyWage = intField(raw, { field: "wage", label: "시급", required: true, def: 10_320, min: 1_000, max: 1_000_000, errors });
+  const asOfDate = dateField(raw, "asOf", todayKst(), errors);
+  const hourlyWage = intField(raw, { field: "wage", label: "시급", required: true, def: resolveRates(asOfDate).set.rates.labor.minHourlyWage, min: 1_000, max: 1_000_000, errors });
   const weeklyHours = intField(raw, { field: "weekly", label: "주 소정근로시간", required: true, def: 40, min: 1, max: 52, errors, integer: false });
   const dm = String(raw.deduction ?? "insurance");
   const deductionMode: DeductionMode = dm === "tax33" || dm === "none" ? dm : "insurance";
@@ -69,7 +71,7 @@ export function parsePayrollInput(raw: Raw): Parsed<PayrollInput> {
   let children = intField(raw, { field: "children", label: "자녀 수", def: 0, min: 0, max: 10, errors });
   ({ family, children } = fixFamily(family, children, adjusted));
   return parsed(
-    { kind, basePay, allowances, overtimeHours, nightHours, holidayHours, holidayOver8Hours, bonus, hourlyWage, weeklyHours, deductionMode, family, children, asOf: dateField(raw, "asOf", todayKst(), errors), size: sizeField(raw) },
+    { kind, basePay, allowances, overtimeHours, nightHours, holidayHours, holidayOver8Hours, bonus, hourlyWage, weeklyHours, deductionMode, family, children, asOf: asOfDate, size: sizeField(raw) },
     errors,
     adjusted,
   );
@@ -89,6 +91,8 @@ export interface PayrollResult {
   /** 통상시급(월급제) 또는 입력 시급(시급제) */
   ordinaryHourly: number;
   monthlyHours: number;
+  /** 월급제 통상시급 기준 시간 (209) */
+  paidHours: number;
   holidayHours: number;
   minWage: { hourly: number; ok: boolean };
   employerInsurance: number;
@@ -158,9 +162,11 @@ export function calcPayroll(input: PayrollInput, resolved: Resolved = resolveRat
       notices.push({ level: "warn", code: "short-hours", text: "주 15시간 미만(초단시간) 근로자는 고용보험·국민연금·건강보험 가입 대상이 아닐 수 있어요. 가입 여부를 확인해 주세요." });
     }
   } else if (input.deductionMode === "tax33") {
-    const r = withholding33(taxable);
-    deductions.push(line("tax", "소득세(3%)", r.tax, "사업소득 원천징수 3%"));
-    deductions.push(line("local", "지방소득세(0.3%)", r.local, "소득세의 10%"));
+    const w33 = w33RatesOf(rates);
+    const lb = w33Labels(w33);
+    const r = withholding33(taxable, w33);
+    deductions.push(line("tax", `소득세(${lb.income})`, r.tax, `사업소득 원천징수 ${lb.income}`));
+    deductions.push(line("local", `지방소득세(${lb.local})`, r.local, `소득세의 ${pct(w33.local)}`));
   }
   const totalDeduction = deductions.reduce((s, l) => s + l.amount, 0);
 
@@ -169,7 +175,6 @@ export function calcPayroll(input: PayrollInput, resolved: Resolved = resolveRat
   if (!minOk) {
     notices.push({ level: "warn", code: "min-wage", text: `시급 ${wageForMin.toLocaleString("ko-KR")}원은 ${resolved.set.year}년 최저임금 ${rates.labor.minHourlyWage.toLocaleString("ko-KR")}원보다 낮아요.` });
   }
-  if (resolved.fallback) notices.push({ level: "warn", code: "rates-fallback", text: `${resolved.fallback.requestedYear}년 요율은 아직 없어 ${resolved.fallback.usedYear}년 기준으로 계산했어요.` });
 
   return {
     input,
@@ -184,6 +189,7 @@ export function calcPayroll(input: PayrollInput, resolved: Resolved = resolveRat
     net: gross - totalDeduction,
     ordinaryHourly,
     monthlyHours,
+    paidHours: rates.labor.monthlyPaidHours,
     holidayHours,
     minWage: { hourly: rates.labor.minHourlyWage, ok: minOk },
     employerInsurance,

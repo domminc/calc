@@ -1,14 +1,17 @@
 // 국세청 근로소득 간이세액표(소득세법 시행령 별표2) 원문 텍스트 → data/rates/<year>/withholding.json
-// 사용: node scripts/build-withholding.mjs 2026
+// 사용: node scripts/build-withholding.mjs <연도> [적용 시작일 YYYY-MM-DD]   예) node scripts/build-withholding.mjs 2026 2026-03-01
 // 원문: data/source/<year>/income-tax-decree-annex2-*.txt (pdftotext -layout 결과)
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 const year = process.argv[2] ?? "2026";
+const effectiveFrom = process.argv[3] ?? `${year}-01-01`;
+if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) throw new Error("적용 시작일은 YYYY-MM-DD 형식이어야 합니다");
 const srcDir = `data/source/${year}`;
 const txtName = readdirSync(srcDir).find((f) => f.startsWith("income-tax-decree-annex2") && f.endsWith(".txt"));
 if (!txtName) throw new Error(`${srcDir} 에 별표2 텍스트가 없습니다`);
 const raw = readFileSync(`${srcDir}/${txtName}`, "utf8");
+const meta = JSON.parse(readFileSync(`${srcDir}/${txtName.replace(".txt", ".meta.json")}`, "utf8"));
 
 const num = (s) => (s === "-" ? 0 : Number(s.replaceAll(",", "")));
 const rowRe = /^\s*([\d,]+)\s+([\d,]+)((?:\s+(?:[\d,]+|-)){11})\s*$/;
@@ -39,9 +42,10 @@ for (const r of rows) {
 
 const out = {
   year: Number(year),
-  source: "소득세법 시행령 [별표 2] 근로소득 간이세액표 (제189조제1항 관련)",
-  revision: "2026-02-27 개정 (2026-03-01 시행분부터)",
-  sourceUrl: "https://www.law.go.kr/LSW/flDownload.do?flSeq=163623339&bylClsCd=110201",
+  effectiveFrom,
+  source: meta.title,
+  revision: meta.revision,
+  sourceUrl: meta.sourceUrl,
   sourceSha256: createHash("sha256").update(readFileSync(`${srcDir}/${txtName.replace(".txt", ".pdf")}`)).digest("hex"),
   unit: "원 / 월급여 단위: 천원",
   // rows: [이상, 미만, 가족1..11] (월급여 천원, 세액 원)
