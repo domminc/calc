@@ -1,0 +1,41 @@
+{
+  "name": "homesell-calc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "homesell 계산기 — 연봉·급여·4대보험·프리랜서 (Cloudflare Workers + Neon + R2)",
+  "scripts": {
+    "build:data": "node scripts/build-withholding.mjs 2026",
+    "build:client": "node scripts/build-client.mjs",
+    "build": "npm run build:client",
+    "dev": "npm run build:client && wrangler dev --local",
+    "deploy": "node scripts/migrate.mjs && npm run build && wrangler deploy",
+    "db:migrate": "node scripts/migrate.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.client.json",
+    "test": "vitest run",
+    "test:db": "scripts/test-db.sh",
+    "test:e2e": "scripts/e2e.sh"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "hono": "^4.13.13",
+    "pdf-lib": "^1.17.1",
+    "postgres": "^3.4.9",
+    "write-excel-file": "^4.1.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261010.1",
+    "@eslint/js": "^9.0.0",
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.0.0",
+    "pretendard": "^1.3.9",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.149.0"
+  }
+}

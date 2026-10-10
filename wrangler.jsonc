@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // 계산기 사이트 Worker. https://calc.homesell.co.kr (Workers Route 는 Cloudflare 대시보드에서만 관리: docs/DEPLOY.md)
+  "name": "homesell-calc",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  // Neon(싱가포르) 가까이에서 돌려 DB 왕복을 줄인다 (가계부와 같은 이유: accountbook docs/CLOUDFLARE.md "느릴 때")
+  "placement": { "region": "aws:ap-southeast-1" },
+  // 처음 한 번 `wrangler hyperdrive create` 로 만들고 id 를 넣는다 (docs/DEPLOY.md). 로컬은 localConnectionString 으로 접속한다.
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "00000000000000000000000000000000", "localConnectionString": "postgres://postgres:local@127.0.0.1:54330/postgres" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "homesell-calc-files" }],
+  // 매일 03:00 KST(= 18:00 UTC): 만료된 공유·신고·제한 기록과 7일 지난 내려받기 캐시 삭제
+  "triggers": { "crons": ["0 18 * * *"] },
+  "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }],
+  "vars": { "SITE_ORIGIN": "https://calc.homesell.co.kr" }
+}
