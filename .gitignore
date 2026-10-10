@@ -2,6 +2,7 @@ node_modules
 .wrangler
 .dev.vars
 public/js/*.js
+!public/js/theme.js
 public/js/*.map
 dist
 test-results

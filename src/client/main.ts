@@ -2,6 +2,8 @@
 import { compute, isCalcKey, sanitizeInputs, type CalcKey } from "../render/calculators.ts";
 import { allowanceRow } from "../render/forms.ts";
 import { hangulWon } from "../render/html.ts";
+import { calcSalary, parseSalaryInput } from "../core/salary.ts";
+import { resolveRates } from "../core/rates.ts";
 
 const $ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document): T | null => root.querySelector<T>(sel);
 const $$ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = document): T[] => [...root.querySelectorAll<T>(sel)];
@@ -9,12 +11,69 @@ const $$ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = doc
 const digits = (s: string) => s.replace(/[^\d]/g, "");
 const commaFmt = (s: string) => (s === "" ? "" : Number(s).toLocaleString("ko-KR"));
 
+function readHero(root: ParentNode): number | undefined {
+  const t = $("[data-hero]", root)?.textContent;
+  return t ? Number(digits(t)) : undefined;
+}
+
+/** 큰 숫자가 바뀔 때 0.35초 동안 부드럽게 따라가고, 끝에는 항상 정확한 값으로 맞춘다 */
+function tweenHero(root: ParentNode, prev: number | undefined): void {
+  const el = $("[data-hero]", root);
+  if (!el || prev === undefined || reducedMotion()) return;
+  const finalText = el.textContent ?? "";
+  const next = Number(digits(finalText));
+  if (!Number.isFinite(next) || Math.abs(next - prev) < 2) return;
+  const start = performance.now();
+  const dur = 350;
+  const step = (now: number) => {
+    const k = Math.min((now - start) / dur, 1);
+    const eased = 1 - Math.pow(1 - k, 3);
+    el.textContent = k >= 1 ? finalText : Math.round(prev + (next - prev) * eased).toLocaleString("ko-KR");
+    if (k < 1 && el.isConnected) requestAnimationFrame(step);
+    else el.textContent = finalText;
+  };
+  requestAnimationFrame(step);
+}
+
 function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number): (...a: A) => void {
   let t: ReturnType<typeof setTimeout> | undefined;
   return (...a: A) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...a), ms);
   };
+}
+
+const reducedMotion = (): boolean => matchMedia("(prefers-reduced-motion: reduce)").matches || navigator.webdriver === true;
+
+/** 슬라이더 채움 비율 (CSSOM 이라 CSP 인라인 스타일 제한을 받지 않는다) */
+function paintRange(r: HTMLInputElement): void {
+  const min = Number(r.min);
+  const max = Number(r.max);
+  const v = Math.min(Math.max(Number(r.value), min), max);
+  r.style.setProperty("--pct", `${max > min ? ((v - min) / (max - min)) * 100 : 0}%`);
+}
+
+/** 입력 이름에 연결된 슬라이더를 현재 값에 맞춘다 */
+function syncRange(root: ParentNode, name: string): void {
+  const r = $<HTMLInputElement>(`input.range[data-range-for="${name}"]`, root);
+  const t = $<HTMLInputElement>(`[name="${name}"]`, root);
+  if (!r || !t) return;
+  r.value = String(Number(digits(t.value)) || 0);
+  paintRange(r);
+}
+
+/** 슬라이더를 움직이면 숫자 입력에 반영 */
+function bindRanges(root: ParentNode, onChange: () => void): void {
+  for (const r of $$<HTMLInputElement>("input.range[data-range-for]", root)) {
+    paintRange(r);
+    r.addEventListener("input", () => {
+      const t = $<HTMLInputElement>(`[name="${r.dataset.rangeFor}"]`, root);
+      if (!t) return;
+      t.value = commaFmt(r.value);
+      paintRange(r);
+      onChange();
+    });
+  }
 }
 
 function formRaw(form: HTMLFormElement): Record<string, string> {
@@ -100,7 +159,9 @@ function initCalc(root: HTMLElement): void {
   const refresh = () => {
     const raw = formRaw(form);
     const out = compute(key, raw);
+    const prevHero = readHero(result);
     result.innerHTML = out.html;
+    tweenHero(result, prevHero);
     setErrors(form, out.errors);
     const q = queryOf(key, raw);
     history.replaceState(null, "", q ? `${location.pathname}?${q}` : location.pathname);
@@ -117,12 +178,14 @@ function initCalc(root: HTMLElement): void {
     if (shareOut) shareOut.hidden = true;
   };
   const refreshSoon = debounce(refresh, 150);
+  bindRanges(form, refreshSoon);
 
   form.addEventListener("input", (e) => {
     const t = e.target as HTMLInputElement;
     if (t.classList.contains("money")) {
       formatMoneyInput(t);
       updateHangul(form, t);
+      syncRange(form, t.name);
     } else if (t.closest("[data-stepper]") && t.type === "text") {
       t.value = digits(t.value);
     }
@@ -149,6 +212,7 @@ function initCalc(root: HTMLElement): void {
       if (input) {
         input.value = commaFmt(chip.dataset.value ?? "");
         updateHangul(form, input);
+        syncRange(form, input.name);
         refresh();
       }
       return;
@@ -284,7 +348,83 @@ function initFeedback(): void {
   if (hidden && document.referrer.startsWith(location.origin)) hidden.value = document.referrer.slice(0, 500);
 }
 
+function initTheme(): void {
+  const btn = $("[data-theme-toggle]");
+  if (!btn) return;
+  const effective = (): "light" | "dark" => (document.documentElement.getAttribute("data-theme") as "light" | "dark" | null) ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const label = () => btn.setAttribute("aria-label", `화면 테마 바꾸기 (현재: ${effective() === "dark" ? "다크" : "라이트"})`);
+  label();
+  btn.addEventListener("click", () => {
+    const next = effective() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      /* 저장 불가 환경에서는 이번 방문에만 적용 */
+    }
+    label();
+  });
+}
+
+/** 홈 빠른 계산기: 연봉만 넣으면 월 실수령액 */
+function initQuick(): void {
+  const q = $("[data-quick]");
+  if (!q) return;
+  const input = $<HTMLInputElement>("input.money", q);
+  const range = $<HTMLInputElement>("input.range", q);
+  const net = $("[data-q-net]", q);
+  const sub = $("[data-q-sub]", q);
+  const link = $<HTMLAnchorElement>("[data-q-link]", q);
+  const han = $("[data-q-hangul]", q);
+  if (!input || !net || !sub || !link) return;
+  const meal = Number(q.dataset.meal ?? 0);
+  const update = () => {
+    const annual = Number(digits(input.value)) || 0;
+    if (han) han.textContent = annual > 0 ? hangulWon(annual) : "";
+    const p = parseSalaryInput({ annual, nonTaxable: meal, family: 1, children: 0 });
+    if (Object.keys(p.errors).length) {
+      sub.textContent = p.errors.annual ?? "입력값을 확인해 주세요.";
+      return;
+    }
+    const r = calcSalary(p.value, resolveRates(p.value.asOf));
+    const prev = Number(digits(net.textContent ?? ""));
+    net.textContent = `${r.netMonthly.toLocaleString("ko-KR")}원`;
+    sub.textContent = `공제 ${r.totalDeduction.toLocaleString("ko-KR")}원 · 공제율 ${(r.deductionRatio * 100).toFixed(1)}%`;
+    link.href = `/salary?annual=${annual}`;
+    if (!reducedMotion() && Number.isFinite(prev) && Math.abs(prev - r.netMonthly) > 1) {
+      const el = net;
+      const start = performance.now();
+      const finalText = el.textContent ?? "";
+      const step = (now: number) => {
+        const k = Math.min((now - start) / 300, 1);
+        el.textContent = k >= 1 ? finalText : `${Math.round(prev + (r.netMonthly - prev) * (1 - Math.pow(1 - k, 3))).toLocaleString("ko-KR")}원`;
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+  };
+  input.addEventListener("input", () => {
+    formatMoneyInput(input);
+    if (range) {
+      range.value = String(Number(digits(input.value)) || 0);
+      paintRange(range);
+    }
+    update();
+  });
+  if (range) {
+    paintRange(range);
+    range.addEventListener("input", () => {
+      input.value = commaFmt(range.value);
+      paintRange(range);
+      update();
+    });
+  }
+  update();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  initQuick();
   for (const el of $$("[data-calc]")) initCalc(el);
   initSticky();
   initFeedback();

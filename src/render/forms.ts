@@ -21,9 +21,12 @@ function err(errors: Errors, name: string): string {
   return errors[name] ? `<p class="field-error" id="e-${name}" role="alert">${esc(errors[name])}</p>` : `<p class="field-error" id="e-${name}" role="alert" hidden></p>`;
 }
 
-export function money(o: { name: string; label: string; value: number | string; errors: Errors; hint?: string; suffix?: string; chips?: { label: string; value: number }[]; hangul?: boolean; optional?: boolean }): string {
+export function money(o: { name: string; label: string; value: number | string; errors: Errors; hint?: string; suffix?: string; chips?: { label: string; value: number }[]; hangul?: boolean; optional?: boolean; slider?: { min: number; max: number; step: number } }): string {
   const v = typeof o.value === "number" ? comma(o.value) : o.value;
   const num = typeof o.value === "number" ? o.value : Number(String(o.value).replaceAll(",", ""));
+  const sl = o.slider
+    ? `<input type="range" class="range" data-range-for="${esc(o.name)}" min="${o.slider.min}" max="${o.slider.max}" step="${o.slider.step}" value="${Number.isFinite(num) ? Math.min(Math.max(num, o.slider.min), o.slider.max) : o.slider.min}" aria-label="${esc(o.label)} 조절 막대">`
+    : "";
   const chips = o.chips
     ? `<div class="chips" role="group" aria-label="${esc(o.label)} 빠른 입력">${o.chips.map((c) => `<button type="button" class="chip" data-fill="${esc(o.name)}" data-value="${c.value}">${esc(c.label)}</button>`).join("")}</div>`
     : "";
@@ -31,7 +34,7 @@ export function money(o: { name: string; label: string; value: number | string; 
 <label for="f-${o.name}">${esc(o.label)}${o.optional ? ' <span class="opt">(선택)</span>' : ""}</label>
 <div class="input-wrap"><input id="f-${o.name}" name="${o.name}" class="money" type="text" inputmode="numeric" autocomplete="off" value="${esc(v)}" aria-describedby="e-${o.name}${o.hint ? ` h-${o.name}` : ""}"${o.errors[o.name] ? ' aria-invalid="true"' : ""}><span class="suffix">${esc(o.suffix ?? "원")}</span></div>
 ${o.hangul !== false && Number.isFinite(num) && num > 0 ? `<p class="hangul" data-hangul="${esc(o.name)}">${esc(hangulWon(num))}</p>` : `<p class="hangul" data-hangul="${esc(o.name)}"></p>`}
-${chips}${o.hint ? `<p class="hint" id="h-${o.name}">${esc(o.hint)}</p>` : ""}${err(o.errors, o.name)}</div>`;
+${sl}${chips}${o.hint ? `<p class="hint" id="h-${o.name}">${esc(o.hint)}</p>` : ""}${err(o.errors, o.name)}</div>`;
 }
 
 export function decimal(o: { name: string; label: string; value: number | string; errors: Errors; suffix: string; hint?: string }): string {
@@ -53,7 +56,7 @@ ${o.hint ? `<p class="hint" id="h-${o.name}">${esc(o.hint)}</p>` : ""}${err(o.er
 }
 
 export function segmented(o: { name: string; label: string; value: string; options: { value: string; label: string }[] }): string {
-  return `<fieldset class="field seg-field"><legend>${esc(o.label)}</legend><div class="segmented" role="radiogroup">${o.options
+  return `<fieldset class="field seg-field"><legend>${esc(o.label)}</legend><div class="segmented" role="radiogroup" data-n="${o.options.length}">${o.options
     .map((p, i) => `<label class="seg-opt"><input type="radio" name="${o.name}" value="${esc(p.value)}"${p.value === o.value ? " checked" : ""}${i === 0 ? "" : ""}><span>${esc(p.label)}</span></label>`)
     .join("")}</div></fieldset>`;
 }
@@ -82,8 +85,8 @@ const FAMILY_HINT = "본인·배우자 포함 (소득세 공제 기준)";
 export function salaryForm(i: SalaryInput, errors: Errors, ctx: FormCtx): string {
   const rev = i.mode === "reverse";
   return `<div class="grp">${segmented({ name: "mode", label: "계산 방향", value: i.mode, options: [{ value: "forward", label: "연봉 → 월 실수령" }, { value: "reverse", label: "월 실수령 → 필요 연봉" }] })}</div>
-<div data-when="mode=forward"${rev ? " hidden" : ""}>${money({ name: "annual", label: "연봉 (세전)", value: i.annual, errors, chips: [{ label: "3,000만", value: 30_000_000 }, { label: "4,000만", value: 40_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "6,000만", value: 60_000_000 }, { label: "8,000만", value: 80_000_000 }, { label: "1억", value: 100_000_000 }] })}</div>
-<div data-when="mode=reverse"${rev ? "" : " hidden"}>${money({ name: "targetNet", label: "희망 월 실수령액", value: i.targetNet, errors, hint: "이 금액 이상을 받으려면 필요한 최소 연봉(1만원 단위)을 찾아요.", chips: [{ label: "200만", value: 2_000_000 }, { label: "300만", value: 3_000_000 }, { label: "400만", value: 4_000_000 }, { label: "500만", value: 5_000_000 }] })}</div>
+<div data-when="mode=forward"${rev ? " hidden" : ""}>${money({ name: "annual", label: "연봉 (세전)", value: i.annual, errors, slider: { min: 10_000_000, max: 200_000_000, step: 1_000_000 }, chips: [{ label: "3,000만", value: 30_000_000 }, { label: "4,000만", value: 40_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "6,000만", value: 60_000_000 }, { label: "8,000만", value: 80_000_000 }, { label: "1억", value: 100_000_000 }] })}</div>
+<div data-when="mode=reverse"${rev ? "" : " hidden"}>${money({ name: "targetNet", label: "희망 월 실수령액", value: i.targetNet, errors, slider: { min: 1_000_000, max: 10_000_000, step: 100_000 }, hint: "이 금액 이상을 받으려면 필요한 최소 연봉(1만원 단위)을 찾아요.", chips: [{ label: "200만", value: 2_000_000 }, { label: "300만", value: 3_000_000 }, { label: "400만", value: 4_000_000 }, { label: "500만", value: 5_000_000 }] })}</div>
 ${segmented({ name: "severance", label: "퇴직금", value: i.severanceIncluded ? "1" : "0", options: [{ value: "0", label: "별도 (연봉÷12)" }, { value: "1", label: "연봉에 포함 (연봉÷13)" }] })}
 ${money({ name: "nonTaxable", label: "월 비과세액", value: i.nonTaxableMonthly, errors, hint: "식대 월 20만원 등. 비과세는 소득세·4대보험 계산에서 빠져요." })}
 <div class="two">${stepper({ name: "family", label: "부양가족 수", value: i.family, min: 1, max: 20, unit: "명", hint: FAMILY_HINT, errors })}${stepper({ name: "children", label: "8~20세 자녀 수", value: i.children, min: 0, max: 10, unit: "명", hint: "부양가족에 포함된 자녀", errors })}</div>
@@ -103,7 +106,7 @@ export function payrollForm(i: PayrollInput, errors: Errors, ctx: FormCtx): stri
   const rows = (i.allowances.length ? i.allowances : []).map((a, n) => allowanceRow(n, a.name, a.amount, a.nonTaxable, a.ordinary, errors)).join("");
   return `${segmented({ name: "kind", label: "급여 방식", value: i.kind, options: [{ value: "monthly", label: "월급제" }, { value: "hourly", label: "시급제 (아르바이트·계약직)" }] })}
 <div data-when="kind=monthly"${monthly ? "" : " hidden"}>
-${money({ name: "basePay", label: "기본급 (월)", value: i.basePay, errors })}
+${money({ name: "basePay", label: "기본급 (월)", value: i.basePay, errors, slider: { min: 0, max: 10_000_000, step: 100_000 } })}
 <div class="allow" data-allow data-max="${MAX_ALLOWANCES}"><div class="allow-head"><b>수당</b><span class="hint">통상임금 포함 여부를 체크하면 연장·야간·휴일수당의 통상시급에 반영돼요.</span></div><div data-allow-rows>${rows}</div>
 <div class="allow-actions"><button type="button" class="btn btn-ghost" data-add-allow>+ 수당 추가</button><button type="button" class="btn btn-ghost" data-add-meal>식대 20만원(비과세) 추가</button></div></div>
 <div class="two">${hours("overtime", "연장근로", i.overtimeHours, errors)}${hours("night", "야간근로 (22~06시)", i.nightHours, errors)}</div>
@@ -134,7 +137,7 @@ export function allowanceRow(n: number, name: string, amount: number | string, n
 // ---------------- 4대보험 ----------------
 
 export function insuranceForm(v: { monthly: number; asOf: string; size: string; wci: string }, errors: Errors, ctx: FormCtx): string {
-  return `${money({ name: "monthly", label: "월 보수 (비과세 제외)", value: v.monthly, errors, hint: "세전 월급에서 식대 등 비과세를 뺀 금액이에요.", chips: [{ label: "200만", value: 2_000_000 }, { label: "300만", value: 3_000_000 }, { label: "400만", value: 4_000_000 }, { label: "500만", value: 5_000_000 }, { label: "700만", value: 7_000_000 }] })}
+  return `${money({ name: "monthly", label: "월 보수 (비과세 제외)", value: v.monthly, errors, slider: { min: 0, max: 10_000_000, step: 100_000 }, hint: "세전 월급에서 식대 등 비과세를 뺀 금액이에요.", chips: [{ label: "200만", value: 2_000_000 }, { label: "300만", value: 3_000_000 }, { label: "400만", value: 4_000_000 }, { label: "500만", value: 5_000_000 }, { label: "700만", value: 7_000_000 }] })}
 ${dateInput({ name: "asOf", label: "기준일", value: v.asOf, errors, hint: "국민연금 기준소득월액 상·하한이 7월 1일에 바뀌어요." })}
 ${sizeSelect(v.size, ctx.rates)}
 ${decimal({ name: "wciRate", label: "산재보험료율 (사업주)", value: v.wci, suffix: "%", hint: `업종별로 달라요(근로복지공단 고시). 비워 두면 전 업종 평균 ${pct(ctx.rates.wci.defaultRate)}.`, errors })}`;
@@ -149,11 +152,11 @@ export function freelancerForm(i: FreelancerInput, errors: Errors, ctx: FormCtx)
   return `${segmented({ name: "tab", label: "무엇을 계산할까요?", value: t, options: [{ value: "w33", label: `${w3.total} 원천징수` }, { value: "tax", label: "5월 종합소득세" }, { value: "net", label: "월 실수령 종합" }] })}
 <div data-when="tab=w33"${t === "w33" ? "" : " hidden"}>
 ${segmented({ name: "amountMode", label: "입력할 금액", value: i.amountMode, options: [{ value: "gross", label: "세전 금액 → 실수령" }, { value: "net", label: "받고 싶은 실수령 → 세전" }] })}
-${money({ name: "amount", label: i.amountMode === "net" ? "받고 싶은 실수령 금액" : "세전 금액 (계약 금액)", value: i.amount, errors, chips: [{ label: "100만", value: 1_000_000 }, { label: "300만", value: 3_000_000 }, { label: "500만", value: 5_000_000 }, { label: "1,000만", value: 10_000_000 }] })}
+${money({ name: "amount", label: i.amountMode === "net" ? "받고 싶은 실수령 금액" : "세전 금액 (계약 금액)", value: i.amount, errors, slider: { min: 0, max: 20_000_000, step: 100_000 }, chips: [{ label: "100만", value: 1_000_000 }, { label: "300만", value: 3_000_000 }, { label: "500만", value: 5_000_000 }, { label: "1,000만", value: 10_000_000 }] })}
 ${stepper({ name: "months", label: "연 환산 개월 수", value: i.months, min: 1, max: 12, unit: "개월", errors })}
 </div>
 <div data-when="tab=tax|net"${t === "w33" ? " hidden" : ""}>
-${money({ name: "revenue", label: `연 수입금액 (${w3.total} 떼기 전)`, value: i.revenue, errors, chips: [{ label: "2,400만", value: 24_000_000 }, { label: "3,600만", value: 36_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "7,000만", value: 70_000_000 }, { label: "1억", value: 100_000_000 }] })}
+${money({ name: "revenue", label: `연 수입금액 (${w3.total} 떼기 전)`, value: i.revenue, errors, slider: { min: 0, max: 200_000_000, step: 1_000_000 }, chips: [{ label: "2,400만", value: 24_000_000 }, { label: "3,600만", value: 36_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "7,000만", value: 70_000_000 }, { label: "1억", value: 100_000_000 }] })}
 ${segmented({ name: "expenseMode", label: "필요경비 방식", value: i.expenseMode, options: [{ value: "rate", label: "단순경비율" }, { value: "actual", label: "실제 경비" }] })}
 <div data-when="expenseMode=rate"${i.expenseMode === "rate" ? "" : " hidden"}>${decimal({ name: "expenseRate", label: "단순경비율", value: String(+(i.expenseRate * 100).toFixed(2)), suffix: "%", hint: `업종코드별로 달라요. 기본값 ${pct(rt.freelancer.defaultSimpleExpenseRate)}는 예시예요(${rt.freelancer.defaultSimpleExpenseNote.split(".")[0]}). 홈택스 경비율 조회 값으로 바꿔 주세요.`, errors })}</div>
 <div data-when="expenseMode=actual"${i.expenseMode === "actual" ? "" : " hidden"}>${money({ name: "actualExpense", label: "실제 경비 (증빙 가능한 금액)", value: i.actualExpense, errors })}</div>

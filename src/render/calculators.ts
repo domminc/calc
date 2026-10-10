@@ -59,7 +59,8 @@ function errorPanel(errors: FieldErrors): string {
 function withRateNotices(out: ComputeOutput, resolved: Resolved): ComputeOutput {
   const ns = rateNotices(resolved);
   if (!ns.length || !out.ok) return out;
-  return { ...out, html: out.html.replace('<div class="result-inner">', `<div class="result-inner">${noticeList(ns)}`) };
+  const list = noticeList(ns);
+  return { ...out, html: out.html.includes("<!--rate-notices-->") ? out.html.replace("<!--rate-notices-->", list) : out.html.replace('<div class="result-inner">', `<div class="result-inner">${list}`) };
 }
 
 export function compute(key: CalcKey, raw: Raw): ComputeOutput {

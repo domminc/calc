@@ -2,7 +2,7 @@
 // migrations/*.sql 을 이름 순서로, 아직 적용하지 않은 것만 실행한다. (가계부 scripts/migrate.mjs 와 같은 방식)
 //   DATABASE_URL=... node scripts/migrate.mjs
 //   MIGRATE_STRICT=1: 주소가 없거나 접속하지 못하면 실패로 끝낸다 (자동 배포용)
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import postgres from "postgres";
@@ -50,14 +50,14 @@ try {
   // 요율 이력 기록: data/rates/<연도>/rates.json 이 바뀌면 새 버전 행을 추가한다 (계산은 번들된 JSON 을 쓰고, 이 표는 이력용)
   for (const year of readdirSync(join(ROOT, "data", "rates")).filter((d) => /^\d{4}$/.test(d))) {
     const rates = readFileSync(join(ROOT, "data", "rates", year, "rates.json"));
-    const wh = readFileSync(join(ROOT, "data", "rates", year, "withholding.json"));
-    const sha = createHash("sha256").update(rates).update(wh).digest("hex");
+    const whFile = join(ROOT, "data", "rates", year, "withholding.json"); // 없으면(앞 연도 표를 물려받는 해) 요율 파일만으로 버전을 만든다
+    const sha = createHash("sha256").update(rates).update(existsSync(whFile) ? readFileSync(whFile) : "").digest("hex");
     const json = JSON.parse(rates.toString("utf8"));
-    const from = json.nps?.limits?.[0]?.from ?? `${year}-01-01`;
+    const from = json.effectiveFrom ?? `${year}-01-01`;
     const version = sha.slice(0, 12);
     const r = await sql`
       insert into rate_sets (year, version, effective_from, sha256, note)
-      values (${Number(year)}, ${version}, ${from}, ${sha}, ${`asOf ${json.asOf}`})
+      values (${Number(year)}, ${version}, ${from}, ${sha}, ${`asOf ${json.asOf}${json.status === "provisional" ? " (잠정)" : ""}`})
       on conflict (year, version) do nothing returning id`;
     if (r.length) console.log(`migrate: 요율 ${year} 버전 ${version} 기록`);
   }

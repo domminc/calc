@@ -75,7 +75,7 @@ test.describe("공유·내려받기·신고", () => {
 test.describe("SEO·기준 페이지", () => {
   test("E40 연봉표 상세: 제목·FAQ JSON-LD·이전/다음 링크", async ({ page }) => {
     await page.goto("/salary/table/4000");
-    await expect(page).toHaveTitle(/연봉 4,000만원 실수령액 2026/);
+    await expect(page).toHaveTitle(/연봉 4,000만원 실수령액 \d{4}/);
     await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(2);
     await expect(page.getByRole("link", { name: /3,900만원/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /4,100만원/ })).toBeVisible();
@@ -146,5 +146,92 @@ test.describe("폰트 (Pretendard 다이나믹 서브셋)", () => {
     expect(css).toContain("font-display: swap");
     const head = await page.request.get(fonts[0]!);
     expect(head.headers()["cache-control"]).toContain("immutable");
+  });
+});
+
+
+const BEFORE_2027 = new Date() < new Date("2027-01-01T00:00:00+09:00");
+
+test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법령 감시", () => {
+  test("E80 테마 토글: 다크로 바꾸면 저장되고 새로고침해도 유지된다", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /화면 테마 바꾸기/ }).click();
+    const t1 = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+    expect(["light", "dark"]).toContain(t1);
+    await page.reload();
+    expect(await page.evaluate(() => document.documentElement.getAttribute("data-theme"))).toBe(t1);
+    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(bg).toBe(t1 === "dark" ? "rgb(9, 11, 10)" : "rgb(244, 246, 243)");
+  });
+
+  test("E81 슬라이더 ↔ 숫자 입력이 서로 연동되고 결과가 바뀐다", async ({ page }) => {
+    await page.goto(`/salary?asOf=${AS_OF}`);
+    const before = await heroValue(page);
+    await page.locator('input.range[data-range-for="annual"]').fill("80000000");
+    await expect(page.locator("#f-annual")).toHaveValue("80,000,000");
+    await expect.poll(() => heroValue(page)).toBeGreaterThan(before);
+    await page.locator("#f-annual").fill("30000000");
+    await expect(page.locator('input.range[data-range-for="annual"]')).toHaveValue("30000000");
+  });
+
+  test("E82 홈 빠른 계산기: 연봉을 바꾸면 월 실수령액과 이동 링크가 바뀐다", async ({ page }) => {
+    await page.goto("/");
+    const net0 = await page.locator("[data-q-net]").textContent();
+    await page.locator("#q-annual").fill("60000000");
+    await expect.poll(async () => page.locator("[data-q-net]").textContent()).not.toBe(net0);
+    await expect(page.locator("[data-q-link]")).toHaveAttribute("href", "/salary?annual=60000000");
+    await expect(page.locator("[data-q-hangul]")).toHaveText("6천만 원");
+    await page.locator("#q-annual").fill("500");
+    await expect(page.locator("[data-q-sub]")).toContainText("사이로 입력");
+  });
+
+  test("E83 탭바: 모바일에서만 보이고, 데스크톱은 상단 메뉴", async ({ page, isMobile }) => {
+    await page.goto("/salary?asOf=" + AS_OF);
+    if (isMobile) {
+      await expect(page.locator(".tabbar")).toBeVisible();
+      await expect(page.locator(".nav")).toBeHidden();
+      await expect(page.locator(".tabbar a[aria-current=page]")).toContainText("연봉");
+    } else {
+      await expect(page.locator(".tabbar")).toBeHidden();
+      await expect(page.locator(".nav a[aria-current=page]")).toHaveText("연봉");
+    }
+  });
+
+  test("E84 결과 도넛은 넓은 결과 카드에서만 보인다", async ({ page, isMobile }) => {
+    await page.goto(`/salary?asOf=${AS_OF}`);
+    if (isMobile) await expect(page.locator(".donut")).toBeHidden();
+    else await expect(page.locator(".donut")).toBeVisible();
+  });
+
+  test("E85 '곧 바뀌는 것' 안내: 접이식, 확정/확정 전 구분 (2027 이전)", async ({ page }) => {
+    test.skip(!BEFORE_2027, "2027년부터는 현재 세트가 2027 이라 안내가 없다");
+    await page.goto(`/freelancer?asOf=${AS_OF}`);
+    const box = page.locator("details.upcoming");
+    await expect(box).toBeVisible();
+    await expect(box.locator("summary")).toContainText("2027-01-01부터 바뀌어요");
+    await box.locator("summary").click();
+    await expect(box).toContainText("확정 전");
+    await expect(box).toContainText("원천징수 세율");
+    await expect(box.locator(".tag-ok").first()).toBeVisible();
+  });
+
+  test("E86 계산 기준: 다음 해 변경표와 법령 변경 감시 현황", async ({ page }) => {
+    await page.goto("/basis");
+    await expect(page.locator("#watch")).toHaveText("법령 변경 감시");
+    await expect(page.locator("#watch + p")).toContainText("마지막 확인");
+    await expect(page.locator("#watch + p")).toContainText("매일");
+    if (BEFORE_2027) {
+      await expect(page.locator("#next")).toContainText("2027년 변경");
+      await expect(page.locator("main")).toContainText("국민연금 보험료율 10.0%");
+      await expect(page.locator("main")).toContainText("확정 전");
+    }
+  });
+
+  test("E87 기준일이 2027 이면 잠정 안내와 국민연금 10% 가 반영된다 (시행일 자동 전환)", async ({ page }) => {
+    await page.goto("/insurance?asOf=2027-03-01&monthly=3000000");
+    await expect(page.locator("#result")).toContainText("2027년 요율은 일부만 확정돼 있어요");
+    await expect(page.locator("#result tbody tr").first()).toContainText("150,000원"); // 국민연금 근로자 5.0%
+    await page.goto("/insurance?asOf=2026-12-31&monthly=3000000");
+    await expect(page.locator("#result tbody tr").first()).toContainText("142,500원");
   });
 });
