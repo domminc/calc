@@ -1,0 +1,580 @@
+{
+ "checkedAt": "2026-10-11",
+ "laws": {
+  "소득세법": [
+   {
+    "status": "현행",
+    "mst": "280405",
+    "promulgated": "20251223",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "224801",
+    "promulgated": "20201229",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "237497",
+    "promulgated": "20211208",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "247467",
+    "promulgated": "20221231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "252783",
+    "promulgated": "20230718",
+    "effective": "20270101",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "267581",
+    "promulgated": "20241231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "280405",
+    "promulgated": "20251223",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289363",
+    "promulgated": "20260908",
+    "effective": "20270909",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "267581",
+    "promulgated": "20241231",
+    "effective": "20280101",
+    "kind": "일부개정"
+   }
+  ],
+  "소득세법 시행령": [
+   {
+    "status": "시행예정",
+    "mst": "269541",
+    "promulgated": "20250228",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "279961",
+    "promulgated": "20251128",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "280865",
+    "promulgated": "20251230",
+    "effective": "20260701",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "283631",
+    "promulgated": "20260227",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "현행",
+    "mst": "290841",
+    "promulgated": "20260930",
+    "effective": "20261001",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "241175",
+    "promulgated": "20220308",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "247489",
+    "promulgated": "20221231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "267821",
+    "promulgated": "20241231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "269541",
+    "promulgated": "20250228",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "280865",
+    "promulgated": "20251230",
+    "effective": "20270101",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "283631",
+    "promulgated": "20260227",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "269541",
+    "promulgated": "20250228",
+    "effective": "20280101",
+    "kind": "일부개정"
+   }
+  ],
+  "소득세법 시행규칙": [
+   {
+    "status": "시행예정",
+    "mst": "284987",
+    "promulgated": "20260320",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "현행",
+    "mst": "286379",
+    "promulgated": "20260522",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "241505",
+    "promulgated": "20220318",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "247541",
+    "promulgated": "20221231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "249117",
+    "promulgated": "20230320",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "267943",
+    "promulgated": "20241231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "284987",
+    "promulgated": "20260320",
+    "effective": "20270101",
+    "kind": "일부개정"
+   }
+  ],
+  "지방세법": [
+   {
+    "status": "현행",
+    "mst": "282559",
+    "promulgated": "20251231",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "225379",
+    "promulgated": "20201229",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "248601",
+    "promulgated": "20230314",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "282559",
+    "promulgated": "20251231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289387",
+    "promulgated": "20260908",
+    "effective": "20270909",
+    "kind": "타법개정"
+   }
+  ],
+  "국민연금법": [
+   {
+    "status": "현행",
+    "mst": "280269",
+    "promulgated": "20251216",
+    "effective": "20260617",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286165",
+    "promulgated": "20260526",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289729",
+    "promulgated": "20260915",
+    "effective": "20270316",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "284451",
+    "promulgated": "20260317",
+    "effective": "20280101",
+    "kind": "타법개정"
+   }
+  ],
+  "국민연금법 시행령": [
+   {
+    "status": "현행",
+    "mst": "272577",
+    "promulgated": "20250625",
+    "effective": "20260101",
+    "kind": "일부개정"
+   }
+  ],
+  "국민건강보험법": [
+   {
+    "status": "현행",
+    "mst": "285273",
+    "promulgated": "20260407",
+    "effective": "20261008",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286213",
+    "promulgated": "20260526",
+    "effective": "20261127",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "280447",
+    "promulgated": "20251223",
+    "effective": "20261224",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286213",
+    "promulgated": "20260526",
+    "effective": "20270101",
+    "kind": "일부개정"
+   }
+  ],
+  "국민건강보험법 시행령": [
+   {
+    "status": "현행",
+    "mst": "289701",
+    "promulgated": "20260915",
+    "effective": "20261001",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289701",
+    "promulgated": "20260915",
+    "effective": "20261224",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289701",
+    "promulgated": "20260915",
+    "effective": "20270101",
+    "kind": "일부개정"
+   }
+  ],
+  "노인장기요양보험법": [
+   {
+    "status": "현행",
+    "mst": "286217",
+    "promulgated": "20260526",
+    "effective": "20260526",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286217",
+    "promulgated": "20260526",
+    "effective": "20261127",
+    "kind": "일부개정"
+   }
+  ],
+  "노인장기요양보험법 시행령": [
+   {
+    "status": "현행",
+    "mst": "286011",
+    "promulgated": "20260512",
+    "effective": "20260512",
+    "kind": "일부개정"
+   }
+  ],
+  "고용보험법": [
+   {
+    "status": "현행",
+    "mst": "284449",
+    "promulgated": "20260317",
+    "effective": "20260918",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286253",
+    "promulgated": "20260526",
+    "effective": "20261127",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "284449",
+    "promulgated": "20260317",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "284449",
+    "promulgated": "20260317",
+    "effective": "20280101",
+    "kind": "일부개정"
+   }
+  ],
+  "고용보험법 시행령": [
+   {
+    "status": "현행",
+    "mst": "288717",
+    "promulgated": "20260818",
+    "effective": "20260918",
+    "kind": "일부개정"
+   }
+  ],
+  "산업재해보상보험법": [
+   {
+    "status": "현행",
+    "mst": "283459",
+    "promulgated": "20260219",
+    "effective": "20260701",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "290149",
+    "promulgated": "20260929",
+    "effective": "20270330",
+    "kind": "일부개정"
+   }
+  ],
+  "산업재해보상보험법 시행령": [
+   {
+    "status": "현행",
+    "mst": "287491",
+    "promulgated": "20260630",
+    "effective": "20260701",
+    "kind": "일부개정"
+   }
+  ],
+  "고용보험 및 산업재해보상보험의 보험료징수 등에 관한 법률": [
+   {
+    "status": "현행",
+    "mst": "285369",
+    "promulgated": "20260407",
+    "effective": "20261008",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "284441",
+    "promulgated": "20260317",
+    "effective": "20270101",
+    "kind": "일부개정"
+   }
+  ],
+  "고용보험 및 산업재해보상보험의 보험료징수 등에 관한 법률 시행령": [
+   {
+    "status": "현행",
+    "mst": "280527",
+    "promulgated": "20251223",
+    "effective": "20251223",
+    "kind": "일부개정"
+   }
+  ],
+  "최저임금법": [
+   {
+    "status": "현행",
+    "mst": "218303",
+    "promulgated": "20200526",
+    "effective": "20200526",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "285389",
+    "promulgated": "20260407",
+    "effective": "20261208",
+    "kind": "타법개정"
+   }
+  ],
+  "최저임금법 시행령": [
+   {
+    "status": "현행",
+    "mst": "206564",
+    "promulgated": "20181231",
+    "effective": "20190101",
+    "kind": "일부개정"
+   }
+  ],
+  "근로기준법": [
+   {
+    "status": "현행",
+    "mst": "285279",
+    "promulgated": "20260407",
+    "effective": "20261008",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "285279",
+    "promulgated": "20260407",
+    "effective": "20261208",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286771",
+    "promulgated": "20260609",
+    "effective": "20261210",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "284443",
+    "promulgated": "20260317",
+    "effective": "20270101",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "285279",
+    "promulgated": "20260407",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286771",
+    "promulgated": "20260609",
+    "effective": "20270610",
+    "kind": "일부개정"
+   }
+  ],
+  "근로기준법 시행령": [
+   {
+    "status": "현행",
+    "mst": "270551",
+    "promulgated": "20250408",
+    "effective": "20251023",
+    "kind": "일부개정"
+   }
+  ]
+ },
+ "rules": {
+  "min-wage": [
+   {
+    "id": "2100000283564",
+    "name": "2027년 적용 최저임금 고시",
+    "issued": "20260805",
+    "effective": "20270101",
+    "status": "연혁"
+   },
+   {
+    "id": "2100000282670",
+    "name": "2027년 적용 최저임금안 고시",
+    "issued": "20260716",
+    "effective": "20270101",
+    "status": "연혁"
+   },
+   {
+    "id": "2100000262710",
+    "name": "2026년 적용 최저임금 고시",
+    "issued": "20250805",
+    "effective": "20260101",
+    "status": "현행"
+   }
+  ],
+  "nps-limits": [
+   {
+    "id": "2100000274228",
+    "name": "국민연금 기준소득월액 하한액과 상한액",
+    "issued": "20260202",
+    "effective": "20260701",
+    "status": "현행"
+   }
+  ],
+  "nhis-limits": [
+   {
+    "id": "2100000270472",
+    "name": "월별 건강보험료액의 상한과 하한에 관한 고시",
+    "issued": "20251224",
+    "effective": "20260101",
+    "status": "현행"
+   }
+  ],
+  "wci-rate": [
+   {
+    "id": "2100000271450",
+    "name": "2026년도 사업종류별 산재보험료율",
+    "issued": "20251231",
+    "effective": "20260101",
+    "status": "현행"
+   }
+  ]
+ }
+}
