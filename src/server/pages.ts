@@ -86,13 +86,14 @@ export function homePage(c: Ctx): string {
 ${tile("payroll", "payroll")}
 ${tile("insurance", "insurance")}
 ${tile("freelancer", "freelancer")}
+${tile("yearend", "yearend")}
 <div class="tile t-law"><span class="t-ico">${icon("flag")}</span><h2>법이 바뀌면 계산도 바뀌어요</h2><ul>${lawItems}</ul><p>법령·고시를 매일 확인하고, 시행일이 되면 자동으로 새 기준을 써요. 마지막 확인 ${esc(checked)} · <a href="/basis#watch">감시 현황</a></p></div>
 <div class="tile t-stat"><h2>간이세액표 원문 그대로</h2><span class="stat">${rs.set.withholding.bands.length}구간</span><p>소득세는 추정식이 아니라 국세청 표를 조회해요. ${esc(rs.set.withholding.revision.split(" ")[0] ?? "")} 개정.</p></div>
 <div class="tile t-table"><h2>자주 찾는 연봉</h2><div class="pills">${popular}</div><a class="go" href="/salary/table">전체 표 보기 ${icon("arrow")}</a></div>
 </div></section>`;
   return layout({
-    title: `homesell 계산기 — 연봉·급여·4대보험·프리랜서 계산기 ${y}`,
-    description: "연봉 실수령액, 급여명세서, 4대보험, 프리랜서 원천징수와 종합소득세를 국세청 간이세액표와 공단 요율 그대로 계산해요. 법이 바뀌면 시행일에 맞춰 자동 반영돼요.",
+    title: `homesell 계산기 — 연봉·급여·4대보험·프리랜서·연말정산 계산기 ${y}`,
+    description: "연봉 실수령액, 급여명세서, 4대보험, 프리랜서 원천징수와 종합소득세, 연말정산 환급 예측을 국세청 간이세액표와 공단 요율 그대로 계산해요. 법이 바뀌면 시행일에 맞춰 자동 반영돼요.",
     path: "/",
     origin: c.origin,
     version: c.version,

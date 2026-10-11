@@ -56,7 +56,7 @@ npm run dev                       # wrangler dev --local (http://127.0.0.1:8787)
 |---|---|
 | 공유 링크·신고 실패 | `/api/health` 의 `DB_응답`. Neon 일시 중지(무료 플랜 자동 정지) 후 첫 요청은 느릴 수 있음. 계산·내려받기는 DB 없이 동작 |
 | 내려받기 실패 | Worker 로그(Observability)에서 `export failed`. 입력값 오류는 400 |
-| 결과가 공단 값과 다름 | `/feedback` 신고 → `/basis` 미확정 항목(U1~U8) 확인 → 확정되면 `rates.json` 의 `verified` 갱신 |
+| 결과가 공단 값과 다름 | `/feedback` 신고 → `/basis` 미확정 항목(U1~U8·U11~U13) 확인 → 확정되면 `rates.json` 의 `verified` 갱신 |
 | 법령 감시 이슈/알림 | Actions `법령 변경 감시` 로그, 이슈 라벨 `law-change`·`law-manual`·`law-sync`. "간이세액표 자동 확인 실패"(코드 1·2)는 응답 형식 변경·다운로드 실패 가능성 → [LAW-WATCH §5.1](LAW-WATCH.md) |
 | 배포가 "DB 마이그레이션"에서 실패 | 로그의 `접속 실패 (n/5)` 줄과 오류 이름·코드 확인. Neon 일시 중지·`DATABASE_URL`(Direct connection 주소) 확인 후 실패한 작업만 재실행 |
 | 코드는 병합했는데 화면이 그대로 | `/api/health` 의 `버전` 이 새 커밋인지 확인 → 아니면 Actions `배포` 실패 여부 확인 |

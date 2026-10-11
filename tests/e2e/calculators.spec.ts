@@ -154,3 +154,63 @@ test.describe("프리랜서 계산기", () => {
     expect(await heroValue(page)).toBeGreaterThan(1_500_000);
   });
 });
+
+test.describe("연말정산 계산기", () => {
+  const ME = `/yearend?asOf=${AS_OF}&a_gross=50000000&a_nt=0&a_nps=2000000&a_hi=1500000&a_tax=3000000`;
+
+  test("E95 내 연말정산: 총급여 5,000만·이미 낸 세금 300만 → 환급 151,250원", async ({ page }) => {
+    await page.goto(ME);
+    await expect(page.locator("#result")).toContainText("예상 환급액");
+    await expectHero(page, 151_250);
+    await expect(page.locator("#result")).toContainText("근로소득세액공제");
+    await expect(page.locator("#result")).toContainText("이 계산기가 반영하지 않는 항목");
+  });
+
+  test("E96 입력을 바꾸면 즉시 재계산되고, 의료비를 넣으면 결과가 달라진다", async ({ page }) => {
+    await page.goto(ME);
+    await expectHero(page, 151_250);
+    await page.locator("details.more", { hasText: "의료비·교육비·보험료" }).first().locator("summary").click();
+    await fill(page, "#f-a_med", "5000000");
+    await expect.poll(() => heroValue(page)).toBeGreaterThan(151_250); // 의료비 공제로 환급이 늘어난다
+    await expect.poll(() => page.url()).toContain("a_med=5000000");
+  });
+
+  test("E97 부양가족 추가·삭제: 자녀를 추가하면 세금이 줄고, 삭제하면 되돌아온다", async ({ page }) => {
+    await page.goto(ME);
+    await expectHero(page, 151_250);
+    await page.getByRole("button", { name: "+ 부양가족 추가" }).click();
+    await expect(page.locator("[data-dep-row]")).toHaveCount(1);
+    await expect.poll(() => heroValue(page)).not.toBe(151_250);
+    await page.getByRole("button", { name: "부양가족 삭제" }).click();
+    await expect(page.locator("[data-dep-row]")).toHaveCount(0);
+    await expectHero(page, 151_250);
+  });
+
+  test("E98 부양가족은 6명까지만 추가된다", async ({ page }) => {
+    await page.goto(ME);
+    for (let i = 0; i < 8; i++) await page.getByRole("button", { name: "+ 부양가족 추가" }).click();
+    await expect(page.locator("[data-dep-row]")).toHaveCount(6);
+  });
+
+  test("E99 부부 비교: 소득이 높은 쪽(나)이 자녀를 공제받는 안이 추천되고, 반대로 하면 세금이 늘어난다", async ({ page }) => {
+    await page.goto(`/yearend?asOf=${AS_OF}&tab=couple&a_gross=90000000&b_gross=30000000&a_nt=0&b_nt=0&a_nps=2000000&a_hi=1500000&a_tax=3000000&b_nps=2000000&b_hi=1500000&b_tax=3000000&d0_rel=child&d0_year=2016`);
+    await expectHero(page, 4_743_605);
+    await expect(page.locator("#result")).toContainText("부양가족은 누가 공제받을까");
+    await expect(page.locator("#result .move-list")).toContainText("나가 공제받기");
+    await expect(page.locator("#result")).toContainText("+305,395원");
+  });
+
+  test("E100 부부 탭 전환: 배우자 입력칸이 나타나고 배우자 행은 부양가족에 넣을 수 없다", async ({ page }) => {
+    await page.goto(ME);
+    await expect(page.locator("#f-b_gross")).toBeHidden();
+    await choose(page, "부부 중 누가 공제받을까");
+    await expect(page.locator("#f-b_gross")).toBeVisible();
+    await expect(page.locator("#result")).toContainText("부부 합계");
+  });
+
+  test("E101 잘못된 출생연도는 오류로 알려준다", async ({ page }) => {
+    await page.goto(`${ME}&d0_rel=child&d0_year=2016`);
+    await fill(page, "#f-d0_year", "1800");
+    await expect(page.locator("#result")).toContainText("입력값을 확인해 주세요");
+  });
+});

@@ -1,6 +1,8 @@
 // 브라우저 보강 스크립트. JS 가 없어도 서버가 같은 결과를 그려 주므로, 여기서는 "즉시 갱신"만 맡는다.
 import { compute, isCalcKey, sanitizeInputs, type CalcKey } from "../render/calculators.ts";
 import { allowanceRow } from "../render/forms.ts";
+import { depRow } from "../render/yearend-form.ts";
+import { emptyDep } from "../core/yearend.ts";
 import { hangulWon } from "../render/html.ts";
 import { calcSalary, parseSalaryInput } from "../core/salary.ts";
 import { resolveRates } from "../core/rates.ts";
@@ -232,6 +234,13 @@ function initCalc(root: HTMLElement): void {
     }
     if (t.closest("[data-add-allow]")) return addAllowance(form, "", "", false, true, refresh);
     if (t.closest("[data-add-meal]")) return addAllowance(form, "식대", "200,000", true, false, refresh);
+    if (t.closest("[data-add-dep]")) return addDependent(form, refresh);
+    const rmDep = t.closest("[data-remove-dep]");
+    if (rmDep) {
+      rmDep.closest("[data-dep-row]")?.remove();
+      refresh();
+      return;
+    }
     const rm = t.closest("[data-remove-allow]");
     if (rm) {
       rm.closest("[data-allow-row]")?.remove();
@@ -306,6 +315,22 @@ function addAllowance(form: HTMLFormElement, name: string, amount: string, nonTa
   if (used.size >= max) return;
   rows.insertAdjacentHTML("beforeend", allowanceRow(n, name, amount, nonTaxable, ordinary, {}));
   $<HTMLInputElement>(`[name="al${n}_${name ? "amount" : "name"}"]`, rows)?.focus();
+  refresh();
+}
+
+function addDependent(form: HTMLFormElement, refresh: () => void): void {
+  const rows = $("[data-dep-rows]", form);
+  const box = $("[data-deps]", form);
+  if (!rows || !box) return;
+  const max = Number(box.dataset.max ?? 6);
+  const used = new Set($$("[data-dep-row] select", rows).map((i) => Number((i as HTMLSelectElement).name.match(/^d(\d+)_rel$/)?.[1])));
+  let n = 0;
+  while (used.has(n)) n++;
+  if (used.size >= max) return;
+  const year = Number($<HTMLSelectElement>("[name=year]", form)?.value) || new Date().getFullYear();
+  rows.insertAdjacentHTML("beforeend", depRow(n, emptyDep(year), {}, year));
+  applyWhen(form);
+  $<HTMLSelectElement>(`[name="d${n}_rel"]`, rows)?.focus();
   refresh();
 }
 

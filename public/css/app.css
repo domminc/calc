@@ -360,3 +360,23 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 .site-footer a { color: inherit; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; animation: none !important; } a.tile:hover, .btn:active, .chip:active { transform: none; } @view-transition { navigation: none; } }
+
+/* ---------- 연말정산 ---------- */
+.grp-title { margin: 18px 0 4px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 1rem; }
+.deps { border: 1px solid var(--line); border-radius: 18px; padding: 14px; margin: 14px 0 8px; background: var(--surface-2); }
+.dep-row { display: grid; gap: 10px; padding: 12px 0; border-top: 1px dashed var(--line); }
+.dep-row > * { min-width: 0; }
+.dep-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+.dep-head .check { grid-column: 1 / -1; }
+.dep-head .icon-btn { grid-column: 1 / -1; justify-self: end; padding: 6px 12px; font-size: .8125rem; min-height: 36px; border-radius: 999px; }
+.dep-amts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.dep-amt label { display: block; font-size: .8125rem; font-weight: 700; color: var(--sub); margin-bottom: 4px; }
+.dep-amt .input-wrap, .dep-year .input-wrap { min-height: 52px; }
+.dep-amt.has-error input, .dep-year.has-error input, .dep-rel.has-error select { border-color: var(--danger, #d92d20); }
+.tips { margin-top: 18px; padding: 16px; border-radius: 18px; background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
+.tips h3 { margin: 0 0 8px; font-size: 1rem; }
+.tip-list, .move-list { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+.move-list { padding-left: 0; list-style: none; }
+.move-list li { padding: 10px 12px; border-radius: 14px; background: var(--tile); overflow-wrap: anywhere; }
+.move-cost { display: inline-block; margin-left: 4px; color: var(--brand); font-weight: 700; font-size: .875rem; }
+.tbl tr.sum th, .tbl tr.sum td { font-weight: 800; background: var(--tile); }

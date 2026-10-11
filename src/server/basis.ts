@@ -22,6 +22,9 @@ function unverified(rates: ReturnType<typeof resolveRates>["set"]["rates"]): { i
     { id: "U6", item: `단순경비율 기본값 ${pct(rates.freelancer.defaultSimpleExpenseRate)}`, assumption: "예시값. 업종별 고시값으로 직접 입력", impact: "프리랜서 세액" },
     { id: "U7", item: `건강보험료 상·하한 (월 ${comma(rates.nhis.premiumMin)}원 / ${comma(rates.nhis.premiumMax)}원)`, assumption: "언론 보도 수치. 보건복지부 고시 원문 대조 전", impact: "극단 소득에서만" },
     { id: "U8", item: "간이세액표 10,000천원 초과 구간 단수", assumption: "별표2 말미 계산식 결과를 10원 미만 절사", impact: "월 과세급여 1,000만원 초과에서 ±10원" },
+    { id: "U11", item: "연말정산 세액 단수처리", assumption: "과세표준·공제액은 원 단위 정수, 지방소득세는 10원 미만 절사", impact: "±10원" },
+    { id: "U12", item: "연말정산의 4대보험 연간액 (직접 입력하지 않은 경우)", assumption: "총급여로 월 보험료를 추정해 12배", impact: "소득공제 수만~수십만원" },
+    { id: "U13", item: "연말정산의 이미 낸 소득세 (직접 입력하지 않은 경우)", assumption: "간이세액표 월 세액 × 12 (상·하반기 요율 세트 반영)", impact: "환급액 전체. 급여명세서 값을 넣으면 정확" },
   ];
 }
 

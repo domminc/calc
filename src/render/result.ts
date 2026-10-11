@@ -10,7 +10,7 @@ import { comma, esc, hangulWon, wonText } from "./html.ts";
 export const disclaimer =
   "모의 계산 결과예요. 실제 급여·보험료·세금은 회사와 공단·국세청 기준으로 확정되며 단수처리에 따라 10원 안팎 차이가 날 수 있어요.";
 
-function badges(year: number, asOf: string, extra: string[] = []): string {
+export function badges(year: number, asOf: string, extra: string[] = []): string {
   const items = [`${year}년 기준`, `기준일 ${asOf}`, ...extra];
   return `<div class="badges">${items.map((t, i) => `<span class="badge${i >= 2 ? " badge-warn" : ""}">${esc(t)}</span>`).join("")}</div>`;
 }
@@ -26,7 +26,7 @@ export function adjustedList(items: string[]): string {
 }
 
 /** 결과 맨 위 그라데이션 패널 (배지 + 큰 숫자 + 도넛). 뒤의 주석은 잠정·시행일 안내가 들어갈 자리 */
-function panel(badgesHtml: string, heroHtml: string, donutHtml = ""): string {
+export function panel(badgesHtml: string, heroHtml: string, donutHtml = ""): string {
   return `<div class="r-panel">${badgesHtml}${heroHtml}${donutHtml}</div><!--rate-notices-->`;
 }
 
@@ -49,7 +49,7 @@ export function donut(total: number, net: number, lines: Line[]): string {
   return `<svg class="donut" viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="trk" cx="60" cy="60" r="${R}" fill="none" stroke-width="13"/><g transform="rotate(-90 60 60)">${arcs}</g><text x="60" y="63" text-anchor="middle" font-size="22">${pctNet}%</text><text x="60" y="80" text-anchor="middle" font-size="9">실수령</text></svg>`;
 }
 
-function hero(label: string, value: number, sub: string, negativeLabel?: string): string {
+export function hero(label: string, value: number, sub: string, negativeLabel?: string): string {
   const neg = value < 0;
   return `<p class="r-label">${esc(neg && negativeLabel ? negativeLabel : label)}</p>
 <p class="r-hero"><span class="r-num" data-hero>${comma(Math.abs(value))}</span><span class="r-unit">원</span></p>
@@ -75,14 +75,14 @@ export function splitBar(total: number, net: number, lines: Line[], label: strin
   return `<svg class="splitbar" role="img" aria-label="${esc(label)}" viewBox="0 0 100 16" preserveAspectRatio="none" width="100%" height="16">${rects}</svg><ul class="legend">${legend}</ul>`;
 }
 
-function breakdown(lines: Line[], totalLabel: string, total: number, head = ["항목", "계산 근거", "금액"]): string {
+export function breakdown(lines: Line[], totalLabel: string, total: number, head = ["항목", "계산 근거", "금액"]): string {
   const rows = lines
     .map((l) => `<tr><th scope="row">${esc(l.label)}</th><td class="basis">${esc(l.basis)}</td><td class="amt">${wonText(l.amount)}</td></tr>`)
     .join("");
   return `<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">${head[0]}</th><th scope="col" class="basis">${head[1]}</th><th scope="col" class="amt">${head[2]}</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">${esc(totalLabel)}</th><td class="basis"></td><td class="amt">${wonText(total)}</td></tr></tfoot></table></div>`;
 }
 
-function details(summary: string, body: string): string {
+export function details(summary: string, body: string): string {
   return `<details class="how"><summary>${esc(summary)}</summary><div class="how-body">${body}</div></details>`;
 }
 

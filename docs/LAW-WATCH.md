@@ -23,7 +23,7 @@ flowchart LR
 | 층 | 무엇을 | 어떻게 | 위치 |
 |---|---|---|---|
 | ① 시행일 기반 데이터 | 요율·한도·세율을 연도(세트)별로 시행일과 함께 보관. 기준일(오늘)에 맞는 세트를 고른다 | `data/rates/<연도>/rates.json` + `src/core/rates.ts` | 코드 수정 없이 데이터만 바꿔도 계산·화면 문구가 함께 바뀜 (UT-H1 가드) |
-| ② 변경 감시 | 계산에 쓰는 법령 20개·고시 4종의 **현행·시행예정** 목록을 스냅샷과 비교 | `scripts/law-watch.ts`, `data/watch/` | Actions 매일 |
+| ② 변경 감시 | 계산에 쓰는 법령 22개·고시 4종의 **현행·시행예정** 목록을 스냅샷과 비교 | `scripts/law-watch.ts`, `data/watch/` | Actions 매일 |
 | ③ 간이세액표 자동 갱신 | 시행령 별표2 개정일이 새로우면 원문 PDF → 표 JSON → PR | `scripts/sync-withholding.ts` | Actions 매일 |
 | ④ 수동 점검 알림 | 법제처 DB에 없는 것(장기요양보험료율·경비율 등)을 해당 달에 알림 | `scripts/law-manual.ts` | Actions 매월 1일 |
 | ⑤ 화면 공개 | `/basis` 에 확정·미확정·시행예정 개정, 마지막 확인일 | `src/server/basis.ts` | 배포 시 스냅샷 반영 |

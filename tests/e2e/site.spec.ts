@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { expectNoHorizontalScroll, heroValue } from "./helpers";
 
 const AS_OF = "2026-10-10";
-const PAGES = ["/", "/salary", "/payroll", "/insurance", "/freelancer", "/salary/table", "/salary/table/4000", "/basis", "/feedback"];
+const PAGES = ["/", "/salary", "/payroll", "/insurance", "/freelancer", "/yearend", "/salary/table", "/salary/table/4000", "/basis", "/feedback"];
 
 test.describe("공통·접근성", () => {
   for (const path of PAGES) {
@@ -20,11 +20,11 @@ test.describe("공통·접근성", () => {
   }
 
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", "/salary", "/payroll", "/insurance", "/freelancer", "/basis"]) {
+    for (const path of ["/", "/salary", "/payroll", "/insurance", "/freelancer", "/yearend", "/basis"]) {
       test(`E21 axe(${scheme}) ${path}: 심각·중대 위반 없음`, async ({ browser }, info) => {
         const ctx = await browser.newContext({ colorScheme: scheme, viewport: info.project.use.viewport ?? { width: 1280, height: 900 } });
         const page = await ctx.newPage();
-        await page.goto(`${path}${path.startsWith("/salary") || path === "/payroll" || path === "/insurance" || path === "/freelancer" ? `?asOf=${AS_OF}` : ""}`);
+        await page.goto(`${path}${path.startsWith("/salary") || path === "/payroll" || path === "/insurance" || path === "/freelancer" || path === "/yearend" ? `?asOf=${AS_OF}` : ""}`);
         const res = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
         const bad = res.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
         expect(bad.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(" | ")}`)).toEqual([]);
@@ -36,7 +36,7 @@ test.describe("공통·접근성", () => {
 
 // E20 은 문서 전체의 가로 스크롤만 본다. 아래는 "칸 안에서 잘리거나 삐져나오는" 문제와 깨진 문구를 잡는다.
 test.describe("레이아웃 깨짐 방지", () => {
-  for (const path of ["/salary", "/payroll", "/insurance", "/freelancer", "/basis"]) {
+  for (const path of ["/salary", "/payroll", "/insurance", "/freelancer", "/yearend", "/basis"]) {
     test(`E90 ${path}: 접힌 부분을 모두 펼쳐도 입력칸·표가 자기 칸 밖으로 나가지 않는다`, async ({ page }) => {
       await page.goto(`${path}${path === "/basis" ? "" : `?asOf=${AS_OF}`}`);
       await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
@@ -55,6 +55,24 @@ test.describe("레이아웃 깨짐 방지", () => {
       expect(bad).toEqual([]);
     });
   }
+
+  test("E90b 연말정산 부부 탭: 부양가족 행·표를 모두 펼쳐도 칸 밖으로 나가지 않는다", async ({ page }) => {
+    await page.goto(`/yearend?asOf=${AS_OF}&tab=couple&a_gross=60000000&b_gross=30000000&sc=10000000&d0_rel=child&d0_year=2016&d0_edu=3000000&d1_rel=parent&d1_year=1950&d1_med=2000000`);
+    await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+    const bad = await page.evaluate(() => {
+      const out: string[] = [];
+      const vw = document.documentElement.clientWidth;
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>(".dep-row select, .dep-row input, .dep-row .input-wrap, .dep-row .btn, .move-list li, .tips"))) {
+        const r = el.getBoundingClientRect();
+        if (!r.width) continue;
+        const box = el.closest<HTMLElement>(".dep-row, .move-list, .tips") ?? document.body;
+        const b = box.getBoundingClientRect();
+        if (r.right > b.right + 1 || r.left < b.left - 1 || r.right > vw + 1) out.push(`${el.tagName}.${el.className} ${Math.round(r.left)}-${Math.round(r.right)} (칸 ${Math.round(b.left)}-${Math.round(b.right)})`);
+      }
+      return out;
+    });
+    expect(bad).toEqual([]);
+  });
 
   test("E91 계산 기준: 글이 많은 표는 좁은 화면에서 가로로 잘리지 않고, 배지는 한 줄이다", async ({ page }) => {
     await page.goto("/basis");
@@ -145,9 +163,9 @@ test.describe("SEO·기준 페이지", () => {
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/salary\/table\/4000$/);
   });
 
-  test("E41 계산 기준: 미확정 항목 8개와 간이세액표 구간 수가 공개된다", async ({ page }) => {
+  test("E41 계산 기준: 미확정 항목 11개와 간이세액표 구간 수가 공개된다", async ({ page }) => {
     await page.goto("/basis");
-    for (const id of ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8"]) await expect(page.getByRole("cell", { name: id, exact: true })).toBeVisible();
+    for (const id of ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U11", "U12", "U13"]) await expect(page.getByRole("cell", { name: id, exact: true })).toBeVisible();
     await expect(page.locator("body")).toContainText("646개 구간");
     await expect(page.locator("body")).toContainText("1,400만원 이하".replace("만원 이하", "") === "" ? "" : "6%");
   });

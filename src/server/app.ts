@@ -103,7 +103,7 @@ app.get("/r/:id", async (c) => {
   }
 });
 
-const ShareBody = z.object({ calculator: z.enum(["salary", "payroll", "insurance", "freelancer"]), inputs: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])) });
+const ShareBody = z.object({ calculator: z.enum(["salary", "payroll", "insurance", "freelancer", "yearend"]), inputs: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])) });
 
 app.post("/api/share", async (c) => {
   const text = await c.req.text();
@@ -193,7 +193,7 @@ app.get("/api/calc/:key", (c) => {
 });
 
 const FeedbackBody = z.object({
-  calculator: z.enum(["salary", "payroll", "insurance", "freelancer", "other"]),
+  calculator: z.enum(["salary", "payroll", "insurance", "freelancer", "yearend", "other"]),
   message: z.string().trim().min(1).max(2000),
   contact: z.string().trim().max(200).optional(),
   page_url: z.string().trim().max(500).optional(),

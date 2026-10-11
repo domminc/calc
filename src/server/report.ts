@@ -7,6 +7,10 @@ import { calcPayroll, parsePayrollInput } from "../core/payroll.ts";
 import { calcInsurance } from "../core/insurance.ts";
 import { parseInsuranceInput } from "../core/insurance-input.ts";
 import { calcNet, calcTab, calcW33, parseFreelancerInput, w33Labels } from "../core/freelancer.ts";
+import { calcMine, yearContext, type PersonInput, type PersonResult } from "../core/yearend.ts";
+import { optimizeCouple } from "../core/yearend-couple.ts";
+import { parseYearendInput } from "../core/yearend-input.ts";
+import { depLabel, personSteps } from "../render/yearend-result.ts";
 import { CALCS } from "./meta.ts";
 import { disclaimer } from "../render/result.ts";
 
@@ -133,6 +137,37 @@ export function buildReport(key: CalcKey, raw: Raw): Report | null {
         inputs: [["연 수입금액", won(p.value.revenue)], ["재산 부과점수", `${p.value.propertyScore}점`]],
         sections: [{ heading: "연 부담 내역", columns: ["항목", "금액"], rows: [["종합소득세+지방소득세", r.tax.totalTax], ["건강보험(12개월)", r.regional.nhis * 12], ["장기요양(12개월)", r.regional.ltc * 12], ["국민연금(12개월)", p.value.useRegionalNps ? r.regional.nps * 12 : 0], ["실제 지출 경비", p.value.cashExpense], ["연 부담 합계", r.annualBurden]] }],
         notes: [...r.notices.map((n) => n.text), disclaimer], fileName: `프리랜서실수령_${r.netMonthly}`,
+      };
+    }
+    case "yearend": {
+      const p = parseYearendInput(raw);
+      if (Object.keys(p.errors).length) return null;
+      const ctx = yearContext(p.value.year);
+      const head = `${p.value.year}년 귀속 연말정산`;
+      const stepRows = (pi: PersonInput, r: PersonResult): Cell[][] => personSteps(ctx, pi, r).filter((s) => s.always || s.amount !== 0).map((s) => [s.label, s.basis, s.amount]);
+      if (p.value.tab === "couple") {
+        const c = optimizeCouple(ctx, p.value.a, p.value.b, p.value.deps, p.value.sharedCredit, p.value.sharedDebit);
+        const total = c.best.a.settleTotal + c.best.b.settleTotal;
+        return {
+          key, title: "연말정산 부부 공제 비교", subtitle: head,
+          hero: { label: total < 0 ? "부부 합계 예상 환급액" : "부부 합계 예상 추가 납부액", value: Math.abs(total), unit: "원" },
+          inputs: [["귀속연도", `${p.value.year}년`], ["나 총급여", won(c.baseA.salary)], ["배우자 총급여", won(c.baseB.salary)], ["부양가족", `${p.value.deps.length}명`]],
+          sections: [
+            { heading: "배분별 세금 (결정세액+지방소득세)", columns: ["배분", "부부 합계"], rows: [["추천 배분", c.best.total], ["모두 나에게", c.allA.total], ["모두 배우자에게", c.allB.total]] },
+            ...(c.moves.length ? [{ heading: "부양가족 배분 (추천)", columns: ["가족", "공제받는 사람", "반대로 하면 늘어나는 세금"], rows: c.moves.map((m): Cell[] => [depLabel(m.dep, p.value.year), m.owner === "A" ? "나" : "배우자", m.costIfMoved]) }] : []),
+            { heading: "나의 계산 과정 (추천 배분)", columns: ["단계", "계산 근거", "금액"], rows: stepRows(p.value.a, c.best.a) },
+            { heading: "배우자의 계산 과정 (추천 배분)", columns: ["단계", "계산 근거", "금액"], rows: stepRows(p.value.b, c.best.b) },
+          ],
+          notes: [disclaimer], fileName: `연말정산_부부_${p.value.year}`,
+        };
+      }
+      const r = calcMine(ctx, p.value.a, p.value.deps);
+      return {
+        key, title: "연말정산 예상 결과", subtitle: head,
+        hero: { label: r.settleTotal < 0 ? "예상 환급액" : "예상 추가 납부액", value: Math.abs(r.settleTotal), unit: "원" },
+        inputs: [["귀속연도", `${p.value.year}년`], ["총급여", won(r.salary)], ["부양가족", `${p.value.deps.length}명`]],
+        sections: [{ heading: "계산 과정", columns: ["단계", "계산 근거", "금액"], rows: stepRows(p.value.a, r) }],
+        notes: [...r.notices.map((n) => n.text), disclaimer], fileName: `연말정산_${p.value.year}`,
       };
     }
   }
