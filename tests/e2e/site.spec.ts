@@ -56,6 +56,28 @@ test.describe("레이아웃 깨짐 방지", () => {
     });
   }
 
+  test("E90c 나란히 놓인 입력칸(.two)은 라벨이 줄바꿈돼도 입력 상자의 윗선이 같다", async ({ page }) => {
+    for (const path of ["/salary", "/payroll", "/freelancer", "/yearend", "/yearend?tab=couple"]) {
+      await page.goto(`${path}${path.includes("?") ? "&" : "?"}asOf=${AS_OF}`);
+      await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+      const bad = await page.evaluate(() => {
+        const out: string[] = [];
+        for (const row of Array.from(document.querySelectorAll<HTMLElement>(".two"))) {
+          if (!row.getBoundingClientRect().width) continue;
+          const tops = Array.from(row.children)
+            .map((c) => c.querySelector<HTMLElement>("input, select, .stepper, .input-wrap"))
+            .filter((e): e is HTMLElement => !!e && e.getBoundingClientRect().width > 0)
+            .map((e) => Math.round(e.getBoundingClientRect().top));
+          const same = tops.every((t) => Math.abs(t - tops[0]!) <= 1);
+          const stacked = new Set(Array.from(row.children).map((c) => Math.round(c.getBoundingClientRect().left))).size === 1;
+          if (!same && !stacked) out.push(`${row.textContent?.trim().slice(0, 30)} → ${tops.join(",")}`);
+        }
+        return out;
+      });
+      expect(bad, path).toEqual([]);
+    }
+  });
+
   test("E90b 연말정산 부부 탭: 부양가족 행·표를 모두 펼쳐도 칸 밖으로 나가지 않는다", async ({ page }) => {
     await page.goto(`/yearend?asOf=${AS_OF}&tab=couple&a_gross=60000000&b_gross=30000000&sc=10000000&d0_rel=child&d0_year=2016&d0_edu=3000000&d1_rel=parent&d1_year=1950&d1_med=2000000`);
     await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));

@@ -5,7 +5,7 @@ import { pct } from "../core/money.ts";
 import { MAX_DEPS, type YearendInput } from "../core/yearend-input.ts";
 import type { Dep, PersonInput } from "../core/yearend.ts";
 import { comma, esc } from "./html.ts";
-import { check, dateInput, money, segmented, select } from "./forms.ts";
+import { check, dateInput, money, segmented, select, stepper } from "./forms.ts";
 
 type Errors = FieldErrors;
 
@@ -73,11 +73,8 @@ ${check({ name: `${p}nh`, label: "무주택 세대주예요 (월세·주택청�
 ${adv("nps", "연 국민연금 납부액", v.npsOverride, "급여명세서의 국민연금 × 12")}
 ${adv("hi", "연 건강·장기요양·고용보험료", v.healthOverride, "세 보험료 합계 × 12")}
 ${adv("tax", "올해 이미 낸 소득세 (원천징수 합계)", v.prepaidOverride, "급여명세서의 소득세 합계. 지방소득세는 자동으로 계산해요.")}
-<div class="two">
-<div class="field"><label for="f-${p}wf">신고한 공제대상가족 수 (본인 포함)</label><input id="f-${p}wf" name="${p}wf" type="text" inputmode="numeric" value="${v.wFamily}"></div>
-<div class="field"><label for="f-${p}wc">그중 8~20세 자녀 수</label><input id="f-${p}wc" name="${p}wc" type="text" inputmode="numeric" value="${v.wChildren}"></div>
-</div>
-<p class="hint">이미 낸 소득세를 비웠을 때만 쓰여요. 회사에 낸 '부양가족 공제 신고서' 기준이에요.</p>
+<div class="two">${stepper({ name: `${p}wf`, label: "공제대상가족 수", value: v.wFamily, min: 1, max: 20, unit: "명", hint: "본인 포함", errors })}${stepper({ name: `${p}wc`, label: "8~20세 자녀 수", value: v.wChildren, min: 0, max: 10, unit: "명", hint: "그중 자녀", errors })}</div>
+<p class="hint">두 칸은 이미 낸 소득세를 비웠을 때만 쓰여요. 회사에 낸 '부양가족 공제 신고서' 기준이에요.</p>
 </details>`;
 }
 
