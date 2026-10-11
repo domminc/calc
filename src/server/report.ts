@@ -112,7 +112,7 @@ export function buildReport(key: CalcKey, raw: Raw): Report | null {
           key, title: `프리랜서 ${w33Labels(r.rates).total} 계산 결과`, subtitle: head,
           hero: { label: r.fromNet ? "필요한 세전 금액" : "실수령액", value: r.fromNet ? r.w.gross : r.w.net, unit: "원" },
           inputs: [["입력", `${r.fromNet ? "실수령" : "세전"} ${won(p.value.amount)}`]],
-          sections: [{ heading: "원천징수", columns: ["항목", "금액"], rows: [["세전 금액", r.w.gross], [`소득세 ${w33Labels(r.rates).income}`, r.w.tax], [`지방소득세 ${w33Labels(r.rates).local}`, r.w.local], ["실수령액", r.w.net]] }],
+          sections: [{ heading: "원천징수", columns: ["항목", "금액"], rows: [["세전 금액", r.w.gross], [`소득세 ${w33Labels(r.rates).income}`, r.w.tax], [`지방소득세 ${w33Labels(r.rates).local}`, r.w.local], ...(r.rates.ei > 0 ? [[`고용보험 ${w33Labels(r.rates).ei}`, r.w.ei] as [string, number]] : []), ["실수령액", r.w.net]] }],
           notes: [...r.notices.map((n) => n.text), disclaimer], fileName: `프리랜서3.3_${r.w.gross}`,
         };
       }

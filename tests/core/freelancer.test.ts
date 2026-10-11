@@ -5,7 +5,9 @@ import {
   calcAnnualTax,
   calcNet,
   calcRegional,
+  calcW33,
   grossFromNet33,
+  legalEiWorkerRate,
   parseFreelancerInput,
   withholding33,
 } from "../../src/core/freelancer.ts";
@@ -34,6 +36,43 @@ describe("3.3% 원천징수", () => {
     for (const gross of [100_000, 777_777, 1_500_000, 3_333_333, 12_345_678]) {
       expect(withholding33(grossFromNet33(withholding33(gross).net)).net).toBe(withholding33(gross).net);
     }
+  });
+});
+
+describe("3.3% 원천징수 + 고용보험 공제 (선택)", () => {
+  const W = (ei: number) => ({ income: 0.03, local: 0.1, ei });
+
+  it("UT-F16 계약금 − (계약금×3.3%) − (계약금×0.9%) : 100만원 → 958,000", () => {
+    expect(withholding33(1_000_000, W(0.009))).toMatchObject({ tax: 30_000, local: 3_000, ei: 9_000, net: 958_000 });
+  });
+  it("UT-F17 공제율 0 이면 기존 3.3% 결과와 같다 (ei 0)", () => {
+    expect(withholding33(1_000_000, W(0))).toMatchObject({ ei: 0, net: 967_000 });
+  });
+  it("UT-F18 역산: 실수령 958,000 → 세전 1,000,000, 순방향과 항상 일치", () => {
+    expect(grossFromNet33(958_000, W(0.009))).toBe(1_000_000);
+    for (const net of [100_000, 777_777, 2_900_000, 9_580_000]) {
+      const g = grossFromNet33(net, W(0.009));
+      const got = withholding33(g, W(0.009)).net;
+      expect(got).toBeGreaterThanOrEqual(net);
+      if (got > net) expect(withholding33(g - 1, W(0.009)).net).toBeLessThan(net);
+    }
+  });
+  it("UT-F19 법정 본인 부담은 고용보험료율의 절반 (예술인·노무제공자 0.8%), 일반 근로자 0.9%와 다르다", () => {
+    expect(legalEiWorkerRate(rates)).toBeCloseTo(0.008, 10);
+    expect(rates.ei.workerRate).toBeCloseTo(0.009, 10);
+    expect(withholding33(1_000_000, W(legalEiWorkerRate(rates))).net).toBe(959_000);
+  });
+  it("UT-F20 입력 해석: % 단위, 범위 밖은 오류, 안내 문구는 법정 율이면 '법정', 아니면 '입력하신 공제율'", () => {
+    expect(parseFreelancerInput({ eiRate: "0.9" }).value.eiRate).toBeCloseTo(0.009, 10);
+    expect(parseFreelancerInput({}).value.eiRate).toBe(0);
+    expect(parseFreelancerInput({ eiRate: "11" }).errors.eiRate).toBeTruthy();
+    const legal = calcW33(parseFreelancerInput({ amount: 1_000_000, eiRate: "0.8", asOf: "2026-10-10" }).value, rates);
+    expect(legal.w.net).toBe(959_000);
+    expect(legal.notices.find((n) => n.code === "ei-special")?.text).toContain("법정 본인 부담");
+    const custom = calcW33(parseFreelancerInput({ amount: 1_000_000, eiRate: "0.9", asOf: "2026-10-10" }).value, rates);
+    expect(custom.w.net).toBe(958_000);
+    expect(custom.notices.find((n) => n.code === "ei-special")?.text).toContain("입력하신 공제율");
+    expect(calcW33(parseFreelancerInput({ amount: 1_000_000, asOf: "2026-10-10" }).value, rates).notices.some((n) => n.code === "ei-special")).toBe(false);
   });
 });
 

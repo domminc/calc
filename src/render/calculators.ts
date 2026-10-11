@@ -33,7 +33,7 @@ const ALLOWED: Record<CalcKey, string[]> = {
   insurance: ["monthly", "asOf", "size", "wciRate"],
   freelancer: [
     "tab", "amountMode", "amount", "months", "revenue", "expenseMode", "expenseRate", "actualExpense", "persons", "children",
-    "pension", "otherDeduction", "prepaid", "propertyScore", "cashExpense", "regionalNps", "asOf",
+    "pension", "otherDeduction", "prepaid", "propertyScore", "cashExpense", "regionalNps", "eiRate", "asOf",
   ],
 };
 
