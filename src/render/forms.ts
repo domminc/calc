@@ -115,9 +115,10 @@ ${money({ name: "bonus", label: "이번 달 상여 (과세)", value: i.bonus, er
 </div>
 <div data-when="kind=hourly"${monthly ? " hidden" : ""}>
 ${money({ name: "wage", label: "시급", value: i.hourlyWage, errors, hint: `${ctx.year}년 최저시급 ${comma(rt.labor.minHourlyWage)}원`, chips: [{ label: "최저시급", value: rt.labor.minHourlyWage }, { label: "11,000", value: 11_000 }, { label: "12,000", value: 12_000 }, { label: "15,000", value: 15_000 }] })}
-${decimal({ name: "weekly", label: "주 소정근로시간", value: String(i.weeklyHours), suffix: "시간", hint: "주 15시간 이상이면 주휴수당이 있어요. 주 40시간 = 월 ${rt.labor.monthlyPaidHours}시간.", errors })}
+${decimal({ name: "weekly", label: "주 소정근로시간", value: String(i.weeklyHours), suffix: "시간", hint: `주 15시간 이상이면 주휴수당이 있어요. 주 40시간 = 월 ${rt.labor.monthlyPaidHours}시간.`, errors })}
 </div>
-${segmented({ name: "deduction", label: "공제 방식", value: i.deductionMode, options: [{ value: "insurance", label: "4대보험+세금" }, { value: "tax33", label: `${w3.total} 원천징수` }, { value: "none", label: "공제 없음" }] })}
+${segmented({ name: "deduction", label: "공제 방식", value: i.deductionMode, options: [{ value: "insurance", label: "4대보험+세금" }, { value: "none", label: "공제 없음" }] })}
+<p class="hint">프리랜서(원천징수 ${w3.total})는 <a href="/freelancer">프리랜서 계산기</a>에서 계산해요.</p>
 <div class="two">${stepper({ name: "family", label: "부양가족 수", value: i.family, min: 1, max: 20, unit: "명", hint: FAMILY_HINT, errors })}${stepper({ name: "children", label: "8~20세 자녀 수", value: i.children, min: 0, max: 10, unit: "명", errors })}</div>
 <details class="more"><summary>고급 설정 (기준일·사업장 규모)</summary>${dateInput({ name: "asOf", label: "기준일", value: i.asOf, errors })}${sizeSelect(i.size, ctx.rates)}</details>`;
 }

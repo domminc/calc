@@ -27,11 +27,13 @@ describe("급여 계산기 — 월급제", () => {
     expect(r.minWage.ok).toBe(false);
     expect(r.notices.some((n) => n.code === "min-wage")).toBe(true);
   });
-  it("UT-P4 공제 없음 / 3.3% 선택", () => {
+  it("UT-P4 공제 없음 선택. 3.3% 는 프리랜서 계산기 몫이라 옛 링크의 deduction=tax33 은 4대보험+세금으로 열린다", () => {
     const none = run({ basePay: 3_000_000, deduction: "none" });
     expect(none.totalDeduction).toBe(0);
-    const t33 = run({ basePay: 3_000_000, deduction: "tax33" });
-    expect(t33.totalDeduction).toBe(99_000);
+    const legacy = run({ basePay: 3_000_000, deduction: "tax33" });
+    const normal = run({ basePay: 3_000_000 });
+    expect(legacy.input.deductionMode).toBe("insurance");
+    expect(legacy.totalDeduction).toBe(normal.totalDeduction);
   });
   it("UT-P5 수당 입력 오류는 필드 오류로", () => {
     const p = parsePayrollInput({ al0_name: "식대", al0_amount: "abc" });

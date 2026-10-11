@@ -101,7 +101,8 @@ body { padding-bottom: calc(var(--tab-h) + 26px + env(safe-area-inset-bottom)); 
 .page-head { padding-top: clamp(22px, 4vw, 44px); padding-bottom: 20px; }
 .crumb { margin: 0 0 8px; color: var(--sub); font-size: .8125rem; }
 .crumb a { color: inherit; }
-.upcoming { margin: 16px 0 0; padding: 4px 16px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--line)); background: color-mix(in srgb, var(--brand) 7%, var(--surface)); font-size: .875rem; max-width: 760px; }
+.upcoming { margin: 16px 0 0; padding: 4px 16px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--line)); background: color-mix(in srgb, var(--brand) 7%, var(--surface)); font-size: .875rem; }
+.upcoming .tag-ok, .upcoming .tag-wait { white-space: nowrap; }
 .upcoming summary { cursor: pointer; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; list-style: none; }
 .upcoming summary::-webkit-details-marker { display: none; }
 .upcoming summary::after { content: "펼치기 ▾"; margin-left: auto; color: var(--sub); font-size: .8125rem; font-weight: 600; }
@@ -176,6 +177,10 @@ a.t-salary:hover { border-color: transparent; }
 select, input[type=date], textarea, .allow-name input { width: 100%; background: var(--tile); border: 1.5px solid transparent; border-radius: var(--r-input); color: inherit; font: inherit; padding: 14px 16px; min-height: 54px; }
 select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--sub) 50%), linear-gradient(135deg, var(--sub) 50%, transparent 50%); background-position: calc(100% - 22px) 50%, calc(100% - 16px) 50%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 40px; }
 textarea { resize: vertical; min-height: 140px; }
+/* iOS Safari: 날짜 입력은 자체 최소 너비·가운데 정렬 때문에 칸 밖으로 삐져나온다 → 모양을 걷어내고 칸 폭에 맞춘다 */
+input[type=date] { -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box; min-width: 0; max-width: 100%; text-align: left; line-height: 1.4; }
+input[type=date]::-webkit-date-and-time-value { text-align: left; min-height: 1.4em; }
+input[type=date]::-webkit-calendar-picker-indicator { opacity: .7; }
 select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { border-color: var(--brand); background-color: var(--surface); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 16%, transparent); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--surface); color: inherit; border-radius: 999px; padding: 6px 13px; font: inherit; font-size: .8125rem; font-weight: 700; cursor: pointer; min-height: 36px; transition: border-color .15s, background .15s, transform .12s; }
@@ -286,7 +291,30 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 .kv dt { color: var(--sub); font-size: .8125rem; }
 .kv dd { margin: 2px 0 0; font-weight: 800; }
 .kv { margin-left: 0; margin-right: 0; }
+/* 가로로 넘치는 숫자표: 좁은 화면에서 밀어 볼 수 있다는 안내를 위에 둔다 */
 .tbl-wrap { overflow-x: auto; }
+.swipe-hint { display: none; margin: 6px 0 2px; color: var(--sub); font-size: .8125rem; }
+@media (max-width: 639px) { .swipe-hint { display: block; } }
+.badge { white-space: nowrap; }
+.tbl td.c-tag { width: 1%; white-space: nowrap; }
+.tbl td.c-tag .badge { vertical-align: top; }
+.tbl td.c-note, .tbl td.c-sub { color: var(--sub); }
+/* 글이 많은 표(계산 기준): 좁은 화면에서는 행마다 카드로 쌓아 오른쪽이 잘리지 않게 한다 */
+@media (max-width: 639px) {
+  .tbl.tbl-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .tbl.tbl-stack, .tbl.tbl-stack tbody { display: block; width: 100%; }
+  .tbl.tbl-stack tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 13px 2px; border-bottom: 1px solid var(--line); }
+  .tbl.tbl-stack td { display: block; padding: 0; border: 0; min-width: 0; overflow-wrap: anywhere; }
+  .tbl.tbl-stack td.c-tag { flex: none; width: auto; }
+  .tbl.tbl-stack td.c-main { flex: 1 1 0; font-weight: 700; }
+  .tbl.tbl-stack td.c-main:first-child { flex-basis: 100%; }
+  .tbl.tbl-stack td.c-sub, .tbl.tbl-stack td.c-note { flex: 1 1 100%; font-size: .8125rem; line-height: 1.55; }
+  .tbl.tbl-stack td.c-sub::before { content: attr(data-label); font-weight: 700; margin-right: 6px; color: var(--ink); }
+  .tbl.tbl-stack td.c-meta { flex: none; color: var(--sub); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+  .tbl.tbl-stack td.c-meta::before { content: attr(data-label) " "; opacity: .75; }
+  .tbl.tbl-stack td.c-plain { flex: 1 1 100%; }
+  .tbl.tbl-stack tr:hover { background: transparent; }
+}
 .tbl-wrap:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: .9375rem; }
 .tbl th, .tbl td { padding: 11px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -316,7 +344,7 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 .faq details p { margin: 0 0 16px; color: var(--sub); }
 .prose h2 { margin: 36px 0 12px; } .prose h3 { margin: 24px 0 8px; font-size: 1.0625rem; }
 .prose .src { padding-left: 20px; display: grid; gap: 6px; }
-.related { margin-top: 32px; }
+.table-link { margin-top: 28px; }
 .card.pad { padding: 8px 18px; }
 
 /* 모바일 요약바 (탭바 위에 떠 있는 알약) */

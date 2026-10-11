@@ -2,9 +2,7 @@
 import { resolveRates, todayKst, type Resolved } from "./rates.ts";
 import { calcInsurance, workerLines } from "./insurance.ts";
 import { withholdingTax } from "./withholding.ts";
-import { w33Labels, w33RatesOf, withholding33 } from "./freelancer.ts";
 import type { CompanySize, FieldErrors, Line, Notice, Parsed } from "./types.ts";
-import { pct } from "./money.ts";
 import { dateField, fixFamily, intField, parsed, sizeField, toBool, toNumber, type Raw } from "./inputs.ts";
 
 export const MAX_ALLOWANCES = 10;
@@ -18,7 +16,8 @@ export interface Allowance {
   ordinary: boolean;
 }
 
-export type DeductionMode = "insurance" | "tax33" | "none";
+/** 3.3% 원천징수는 프리랜서 계산기(/freelancer) 몫이다. 옛 공유 링크의 deduction=tax33 은 "insurance" 로 열린다. */
+export type DeductionMode = "insurance" | "none";
 
 export interface PayrollInput {
   kind: "monthly" | "hourly";
@@ -66,7 +65,7 @@ export function parsePayrollInput(raw: Raw): Parsed<PayrollInput> {
   const hourlyWage = intField(raw, { field: "wage", label: "시급", required: true, def: resolveRates(asOfDate).set.rates.labor.minHourlyWage, min: 1_000, max: 1_000_000, errors });
   const weeklyHours = intField(raw, { field: "weekly", label: "주 소정근로시간", required: true, def: 40, min: 1, max: 52, errors, integer: false });
   const dm = String(raw.deduction ?? "insurance");
-  const deductionMode: DeductionMode = dm === "tax33" || dm === "none" ? dm : "insurance";
+  const deductionMode: DeductionMode = dm === "none" ? "none" : "insurance";
   let family = intField(raw, { field: "family", label: "부양가족 수", def: 1, min: 1, max: 20, errors });
   let children = intField(raw, { field: "children", label: "자녀 수", def: 0, min: 0, max: 10, errors });
   ({ family, children } = fixFamily(family, children, adjusted));
@@ -161,12 +160,6 @@ export function calcPayroll(input: PayrollInput, resolved: Resolved = resolveRat
     if (input.kind === "hourly" && input.weeklyHours < 15) {
       notices.push({ level: "warn", code: "short-hours", text: "주 15시간 미만(초단시간) 근로자는 고용보험·국민연금·건강보험 가입 대상이 아닐 수 있어요. 가입 여부를 확인해 주세요." });
     }
-  } else if (input.deductionMode === "tax33") {
-    const w33 = w33RatesOf(rates);
-    const lb = w33Labels(w33);
-    const r = withholding33(taxable, w33);
-    deductions.push(line("tax", `소득세(${lb.income})`, r.tax, `사업소득 원천징수 ${lb.income}`));
-    deductions.push(line("local", `지방소득세(${lb.local})`, r.local, `소득세의 ${pct(w33.local)}`));
   }
   const totalDeduction = deductions.reduce((s, l) => s + l.amount, 0);
 

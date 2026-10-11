@@ -41,11 +41,27 @@ export function basisBody(history: { year: number; version: string; effective_fr
   const bracket = r.incomeTax.brackets
     .map((b, i, a) => `<tr><td>${i === 0 ? "0" : comma(a[i - 1]!.upTo!)}원 초과</td><td>${b.upTo ? `${comma(b.upTo)}원 이하` : "—"}</td><td class="amt">${pct(b.rate)}</td><td class="amt">${comma(b.deduction)}원</td></tr>`)
     .join("");
-  const un = unverified(r).map((u) => `<tr><td>${u.id}</td><td>${esc(u.item)}</td><td>${esc(u.assumption)}</td><td>${esc(u.impact)}</td></tr>`).join("");
-  const wrap = (inner: string) => `<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)">${inner}</div>`;
+  // 숫자 열이 많아 가로로 밀어 봐야 하는 표 (좁은 화면에서 안내 문구가 위에 보인다)
+  const wrap = (inner: string) => `<p class="swipe-hint">↔ 옆으로 밀어서 전체를 볼 수 있어요</p><div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)">${inner}</div>`;
+  /**
+   * 글이 많은 표: 넓은 화면에서는 보통 표, 좁은 화면(≤639px)에서는 행마다 카드로 쌓는다 (가로로 잘리지 않게).
+   * 셀 class — tag: 배지/번호, main: 제목, sub: 보조 설명(라벨 표시), note: 보조 설명(라벨 없음), meta: 한 줄에 이어 붙는 짧은 값(라벨 표시), 없으면 본문.
+   * 쌓을 때 표 의미가 사라지지 않도록 role 을 명시한다. cells 는 이미 이스케이프된 HTML.
+   */
+  const stack = (cols: { label: string; cls?: "tag" | "main" | "sub" | "note" | "meta" }[], rows: string[][]) =>
+    `<div class="tbl-wrap"><table class="tbl tbl-stack" role="table"><thead role="rowgroup"><tr role="row">${cols.map((c) => `<th role="columnheader" scope="col">${esc(c.label)}</th>`).join("")}</tr></thead><tbody role="rowgroup">${rows
+      .map((cells) => `<tr role="row">${cells.map((h, i) => `<td role="cell" class="c-${cols[i]!.cls ?? "plain"}" data-label="${esc(cols[i]!.label)}">${h}</td>`).join("")}</tr>`)
+      .join("")}</tbody></table></div>`;
+  const un = stack(
+    [{ label: "번호", cls: "tag" }, { label: "항목", cls: "main" }, { label: "현재 가정", cls: "sub" }, { label: "영향", cls: "sub" }],
+    unverified(r).map((u) => [esc(u.id), esc(u.item), esc(u.assumption), esc(u.impact)]),
+  );
   const hist = history
     ? history.length
-      ? wrap(`<table class="tbl"><thead><tr><th scope="col">연도</th><th scope="col">버전</th><th scope="col">시행</th><th scope="col">기록일</th></tr></thead><tbody>${history.map((h) => `<tr><td>${h.year}</td><td><code>${esc(h.version)}</code></td><td>${esc(h.effective_from)}</td><td>${esc(h.created_at.slice(0, 10))}</td></tr>`).join("")}</tbody></table>`)
+      ? stack(
+          [{ label: "연도", cls: "main" }, { label: "버전", cls: "meta" }, { label: "시행", cls: "meta" }, { label: "기록일", cls: "meta" }],
+          history.map((h) => [String(h.year), `<code>${esc(h.version)}</code>`, esc(h.effective_from), esc(h.created_at.slice(0, 10))]),
+        )
       : `<p class="muted">기록이 아직 없어요.</p>`
     : `<p class="muted">이력을 불러오지 못했어요.</p>`;
   const files = sourceFiles.length
@@ -56,15 +72,28 @@ export function basisBody(history: { year: number; version: string; effective_fr
   const next = ns
     ? `<h2 id="next">${ns.year}년 변경 (${esc(ns.effectiveFrom)} 시행 — 확정된 것만 반영)</h2>
 <p>시행일이 되면 별도 배포 없이 ${ns.year}년 요율로 자동 계산해요. 확정 전 항목은 앞 연도 값을 잠정 적용하고 결과 위에 안내해요.</p>
-${wrap(`<table class="tbl"><thead><tr><th scope="col">구분</th><th scope="col">항목</th><th scope="col">근거 / 지금 적용 중인 값</th></tr></thead><tbody>${ns.meta.confirmed.map((c) => `<tr><td><span class="badge">확정</span></td><td>${esc(c.item)}</td><td>${esc(c.basis)}</td></tr>`).join("")}${ns.meta.pending.map((c) => `<tr><td><span class="badge badge-warn">확정 전</span></td><td>${esc(c.item)}</td><td>${esc(c.now)}</td></tr>`).join("")}</tbody></table>`)}`
+${stack(
+  [{ label: "구분", cls: "tag" }, { label: "항목", cls: "main" }, { label: "근거 / 지금 적용 중인 값", cls: "note" }],
+  [
+    ...ns.meta.confirmed.map((c) => [`<span class="badge">확정</span>`, esc(c.item), esc(c.basis)]),
+    ...ns.meta.pending.map((c) => [`<span class="badge badge-warn">확정 전</span>`, esc(c.item), esc(c.now)]),
+  ],
+)}`
     : "";
 
   // 법령 감시 현황
   const up = upcoming(snapshot, todayKst());
-  const upRows = up.map((u) => `<tr><td>${esc(u.name)}</td><td>${d8(u.effective)}</td><td>${d8(u.promulgated)}</td><td>${esc(u.kind)}</td></tr>`).join("");
+  const upCols = [{ label: "법령", cls: "main" as const }, { label: "시행일", cls: "meta" as const }, { label: "공포일", cls: "meta" as const }, { label: "구분", cls: "meta" as const }];
+  const upRow = (u: (typeof up)[number]) => [esc(u.name), d8(u.effective), d8(u.promulgated), esc(u.kind)];
+  // 가까운 시행일 8건만 바로 보여주고 나머지는 접어 둔다 (전체 50건 안팎)
+  const UP_SHOWN = 8;
+  const upHtml =
+    up.length <= UP_SHOWN + 2
+      ? stack(upCols, up.map(upRow))
+      : `${stack(upCols, up.slice(0, UP_SHOWN).map(upRow))}<details class="more"><summary>나머지 ${up.length - UP_SHOWN}건 보기</summary>${stack(upCols, up.slice(UP_SHOWN).map(upRow))}</details>`;
   const watch = `<h2 id="watch">법령 변경 감시</h2>
 <p>계산에 쓰는 법령 ${targets.laws.length}개와 고시 ${targets.rules.length}종을 <b>매일</b> 법제처 자료와 비교해요. 변경이나 시행 예정 개정이 생기면 알림이 만들어지고, 확인해서 요율·계산식을 갱신해요. 근로소득 간이세액표(시행령 별표2)는 새 개정이 나오면 원문을 받아 자동으로 표를 만들어요. 마지막 확인: <b>${esc(snapshot.checkedAt)}</b></p>
-${up.length ? `<h3>앞으로 시행될 개정 (법제처 기준, 내용 확인 후 반영)</h3>${wrap(`<table class="tbl"><thead><tr><th scope="col">법령</th><th scope="col">시행일</th><th scope="col">공포일</th><th scope="col">구분</th></tr></thead><tbody>${upRows}</tbody></table>`)}<p class="muted">시행 예정이어도 계산에 쓰는 값과 무관한 개정이 대부분이에요. 계산에 영향이 있는 것만 위 '변경' 표에 확정으로 올라가요.</p>` : ""}
+${up.length ? `<h3>앞으로 시행될 개정 (법제처 기준, 내용 확인 후 반영)</h3>${upHtml}<p class="muted">시행 예정이어도 계산에 쓰는 값과 무관한 개정이 대부분이에요. 계산에 영향이 있는 것만 위 '변경' 표에 확정으로 올라가요.</p>` : ""}
 <p class="muted">법제처 고시 자료에 없는 항목(장기요양보험료율, 경비율 등)은 해당 시기에 사람이 직접 확인해요: ${(targets.manual ?? []).map((m) => esc(m.item)).join(" · ")}</p>`;
 
   return `<section class="wrap page-head"><p class="crumb"><a href="/">홈</a> / 계산 기준</p><h1>계산 기준 · 요율표 · 출처</h1>
