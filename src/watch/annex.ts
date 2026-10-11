@@ -18,22 +18,37 @@ export function revisionOf(title: string): string | undefined {
   return `${y}-${mo!.padStart(2, "0")}-${d!.padStart(2, "0")}`;
 }
 
-/** 시행령 XML 에서 [별표 2] 근로소득 간이세액표를 찾는다. 없으면 undefined */
+const tagText = (s: string, tag: string) =>
+  new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`).exec(s)?.[1]?.trim();
+
+/**
+ * 시행령 XML 에서 [별표 2] 근로소득 간이세액표를 찾는다. 없으면 undefined.
+ * 실제 법제처 응답(2026-10 확인): 번호는 <별표번호>0002, 제목에는 "[별표 2]"·개정일이 없고
+ * 개정일은 <별표내용> 첫 줄("■ 소득세법 시행령 [별표 2] <개정 2026. 2. 27.>")에 있다. PDF 는 <별표서식PDF파일링크>.
+ */
 export function findWithholdingAnnex(xml: string): Annex | undefined {
   const blocks = xml.match(/<별표단위[^>]*>[\s\S]*?<\/별표단위>/g) ?? [];
   for (const b of blocks) {
-    const head = b.slice(0, 1500);
-    if (!/\[별표\s*2\]/.test(head) || !/간이세액표/.test(head)) continue;
-    // 내용(<별표내용>)은 매우 길 수 있으니 링크는 내용 앞쪽에서만 찾는다
+    // 내용(<별표내용>)은 매우 길 수 있으니 따로 떼어 앞쪽만 본다
+    const content = /<별표내용>([\s\S]*?)<\/별표내용>/.exec(b)?.[1] ?? "";
     const pre = b.replace(/<별표내용>[\s\S]*?<\/별표내용>/, "");
-    const links = [...pre.matchAll(/flDownload\.do\?(?:[^"'<\s]*?&(?:amp;)?)?flSeq=(\d+)/g)];
-    if (!links.length) continue;
-    const pdfLine = pre.split(/\n|></).find((l) => /PDF/.test(l) && /flSeq=\d+/.test(l));
-    const pdfSeq = pdfLine ? /flSeq=(\d+)/.exec(pdfLine)?.[1] : undefined;
-    const title = /<별표제목>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/별표제목>/.exec(pre)?.[1]?.trim() ?? head.slice(0, 200);
-    const revision = revisionOf(title) ?? revisionOf(pre);
+    const title = tagText(pre, "별표제목") ?? "";
+    const contentHead = content.slice(0, 1500);
+    // 근로소득 간이세액표만 (연금소득·종교인소득 간이세액표와 구분). 번호 태그가 있으면 0002(가지번호 00)여야 한다
+    if (!/근로소득\s*간이세액표/.test(title)) continue;
+    const num = tagText(pre, "별표번호");
+    const branch = tagText(pre, "별표가지번호");
+    if (num !== undefined && Number(num) !== 2) continue;
+    if (branch !== undefined && Number(branch) !== 0) continue;
+    if (num === undefined && !/\[별표\s*2\]/.test(title + contentHead)) continue;
+    const revision = revisionOf(title) ?? revisionOf(contentHead) ?? revisionOf(pre);
     if (!revision) continue;
-    return { title, revision, flSeq: pdfSeq ?? links[links.length - 1]![1]! };
+    const pdfLink = tagText(pre, "별표서식PDF파일링크");
+    const pdfSeq = pdfLink ? /flSeq=(\d+)/.exec(pdfLink)?.[1] : undefined;
+    const links = [...pre.matchAll(/flDownload\.do\?(?:[^"'<\s]*?&(?:amp;)?)?flSeq=(\d+)/g)];
+    const flSeq = pdfSeq ?? links[0]?.[1];
+    if (!flSeq) continue;
+    return { title, revision, flSeq };
   }
   return undefined;
 }
