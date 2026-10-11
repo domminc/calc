@@ -64,7 +64,7 @@ const pdf = (await get(pdfUrl, true)) as Buffer;
 if (pdf.subarray(0, 5).toString() !== "%PDF-") throw new Error("내려받은 파일이 PDF 가 아니에요");
 writeFileSync(`${dir}/${base}.pdf`, pdf);
 execFileSync("pdftotext", ["-layout", `${dir}/${base}.pdf`, `${dir}/${base}.txt`]);
-writeFileSync(`${dir}/${base}.meta.json`, JSON.stringify({ revision: `${annex.revision} 개정 (${effectiveFrom} 시행분부터 — 시행일은 부칙으로 확인 필요)`, sourceUrl: pdfUrl, title: annex.title.replace(/<개정[^>]*>\s*/, "") }, null, 2) + "\n");
+writeFileSync(`${dir}/${base}.meta.json`, JSON.stringify({ revision: `${annex.revision} 개정 (${effectiveFrom} 시행분부터 — 시행일은 부칙으로 확인 필요)`, sourceUrl: pdfUrl, title: `소득세법 시행령 [별표 2] ${annex.title.replace(/<개정[^>]*>\s*/, "").replace(/^\[별표\s*2\]\s*/, "")}` }, null, 2) + "\n");
 
 // 같은 연도에 이전 원문이 있으면 새 것만 쓰도록 오래된 .txt 는 치운다 (build-withholding 은 연도 폴더의 첫 파일을 쓴다)
 for (const f of readdirSync(dir)) {

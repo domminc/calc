@@ -108,6 +108,31 @@ describe("간이세액표(별표2) 개정 탐지", () => {
     expect(a?.flSeq).toBe("164357181");
   });
 
+  // 실제 법제처 lawService 응답(2026-10-11, 소득세법 시행령 ID=003956)의 별표 머리 구조를 줄여 옮긴 것:
+  // 제목에 "[별표 2]"·개정일이 없고, 개정일은 <별표내용> 첫 줄에 있다.
+  const real = (no: string, title: string, rev: string, pdf: string) =>
+    `<별표단위 별표키="0${no}00E"><별표번호>${no}</별표번호><별표가지번호>00</별표가지번호><별표구분>별표</별표구분>` +
+    `<별표제목><![CDATA[${title}]]></별표제목><별표서식파일링크>/LSW/flDownload.do?flSeq=${pdf}0</별표서식파일링크>` +
+    `<별표서식PDF파일링크>/LSW/flDownload.do?flSeq=${pdf}</별표서식PDF파일링크><별표서식이미지파일링크>/LSW/flDownload.do?flSeq=${pdf}2</별표서식이미지파일링크>` +
+    `<별표내용><![CDATA[■ 소득세법 시행령 [별표 ${Number(no)}] <개정 ${rev}>      ]]>\n<![CDATA[\n]]>\n<![CDATA[  ${title}  ]]></별표내용></별표단위>`;
+
+  it("UT-L8b 실제 응답 구조: 번호 태그·내용 첫 줄의 개정일·PDF 링크 태그로 찾고, 연금·종교인소득 표는 고르지 않는다", () => {
+    const xml =
+      `<법령>${real("0001", "농가부업규모 축산의 범위(제9조제1항제1호 관련)", "2020. 2. 11.", "111")}` +
+      `${real("0002", "근로소득 간이세액표(제189조제1항 관련)", "2026. 2. 27.", "169813489")}` +
+      `${real("0003", "연금소득 간이세액표(제189조제2항 관련)", "2025. 2. 28.", "222")}` +
+      `${real("0003", "종교인소득 간이세액표(제202조제4항 관련)", "2026. 2. 27.", "333")}</법령>`;
+    const a = findWithholdingAnnex(xml);
+    expect(a?.revision).toBe("2026-02-27");
+    expect(a?.flSeq).toBe("169813489"); // 파일 링크(…0)·이미지 링크(…2)가 아니라 PDF 링크
+    expect(a?.title).toBe("근로소득 간이세액표(제189조제1항 관련)");
+  });
+
+  it("UT-L8c 근로소득 간이세액표가 없으면(연금·종교인 표만 있으면) 찾지 못한다", () => {
+    const xml = `<법령>${real("0003", "연금소득 간이세액표(제189조제2항 관련)", "2025. 2. 28.", "222")}</법령>`;
+    expect(findWithholdingAnnex(xml)).toBeUndefined();
+  });
+
   it("UT-L9 못 찾으면 undefined (엉뚱한 표를 고르지 않는다)", () => {
     expect(findWithholdingAnnex(`<법령>${block("[별표 3] <개정 2026. 1. 1.> 다른 표", "/LSW/flDownload.do?flSeq=1")}</법령>`)).toBeUndefined();
   });
