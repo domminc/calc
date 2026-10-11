@@ -133,10 +133,7 @@ ${form}
 </div>
 </section>
 <div class="sticky-bar" data-sticky hidden><span class="sb-label" data-sb-label>${esc(out.summary?.label ?? "")}</span><b class="sb-value" data-sb-value>${esc(out.summary?.value ?? "")}</b><a class="btn btn-small" href="#result">자세히</a></div>
-<section class="wrap related"><h2 class="h2">함께 쓰는 계산기</h2><div class="pills">${(Object.keys(CALCS) as CalcKey[])
-    .filter((k) => k !== key)
-    .map((k) => `<a class="pill" href="${CALCS[k].path}">${esc(CALCS[k].name)}</a>`)
-    .join("")}${key === "salary" ? '<a class="pill" href="/salary/table">연봉별 실수령액표</a>' : ""}</div></section>
+${key === "salary" ? '<p class="wrap muted table-link">연봉 구간별로 한눈에 보려면 <a href="/salary/table">연봉별 실수령액표</a></p>' : ""}
 <section class="wrap">${faqHtml(seo.faq)}</section>`;
   return layout({
     title: seo.title,

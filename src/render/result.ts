@@ -138,7 +138,7 @@ ${splitBar(r.gross, r.net, r.deductions, `총 지급액 ${wonText(r.gross)} 중 
 <dl class="kv"><div><dt>총 지급액</dt><dd>${wonText(r.gross)}</dd></div><div><dt>비과세</dt><dd>${wonText(r.nonTaxable)}</dd></div><div><dt>과세 급여</dt><dd>${wonText(r.taxable)}</dd></div></dl>
 ${noticeList(r.notices)}
 ${details("어떻게 계산했나요?", hourly
-    ? `<ol class="how-list"><li>주 ${r.input.weeklyHours}시간 근무 → 월 소정근로 ${r.monthlyHours - r.holidayHours}시간, 주휴 ${r.holidayHours}시간 (주 ÷ 40 × 8시간, 15시간 이상, 1주 = 365÷7÷12주)</li><li>월급 = 시급 × (소정근로 + 주휴시간)</li><li>공제 방식에 따라 4대보험·간이세액표 또는 사업소득 원천징수를 적용해요.</li></ol>`
+    ? `<ol class="how-list"><li>주 ${r.input.weeklyHours}시간 근무 → 월 소정근로 ${r.monthlyHours - r.holidayHours}시간, 주휴 ${r.holidayHours}시간 (주 ÷ 40 × 8시간, 15시간 이상, 1주 = 365÷7÷12주)</li><li>월급 = 시급 × (소정근로 + 주휴시간)</li><li>공제 방식이 "4대보험+세금"이면 4대보험과 간이세액표 소득세를 빼요. (프리랜서 원천징수는 프리랜서 계산기에서 계산해요.)</li></ol>`
     : `<ol class="how-list"><li>통상시급 = (기본급 + 통상임금 포함 수당) ÷ ${r.paidHours}시간 (소수점 버림)</li><li>연장근로 = 통상시급 × 1.5, 야간 가산 = × 0.5, 휴일 = × 1.5 (8시간 초과분 × 2.0)</li><li>과세 급여 = 총 지급액 − 비과세. 4대보험은 과세 급여 기준이고 소득세는 간이세액표로 구해요.</li></ol>`)}
 <p class="disclaimer">${esc(disclaimer)}</p></div>`;
 }

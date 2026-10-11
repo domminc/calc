@@ -34,6 +34,69 @@ test.describe("공통·접근성", () => {
   }
 });
 
+// E20 은 문서 전체의 가로 스크롤만 본다. 아래는 "칸 안에서 잘리거나 삐져나오는" 문제와 깨진 문구를 잡는다.
+test.describe("레이아웃 깨짐 방지", () => {
+  for (const path of ["/salary", "/payroll", "/insurance", "/freelancer", "/basis"]) {
+    test(`E90 ${path}: 접힌 부분을 모두 펼쳐도 입력칸·표가 자기 칸 밖으로 나가지 않는다`, async ({ page }) => {
+      await page.goto(`${path}${path === "/basis" ? "" : `?asOf=${AS_OF}`}`);
+      await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+      const bad = await page.evaluate(() => {
+        const out: string[] = [];
+        const vw = document.documentElement.clientWidth;
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>(".field input, .field select, .input-wrap, .segmented, .stepper, .tbl-stack"))) {
+          const r = el.getBoundingClientRect();
+          if (!r.width) continue;
+          const box = el.closest<HTMLElement>(".field, .tbl-wrap, form") ?? document.body;
+          const b = box.getBoundingClientRect();
+          if (r.right > b.right + 1 || r.left < b.left - 1 || r.right > vw + 1) out.push(`${el.tagName}.${el.className} ${Math.round(r.left)}-${Math.round(r.right)} (칸 ${Math.round(b.left)}-${Math.round(b.right)}, 화면 ${vw})`);
+        }
+        return out;
+      });
+      expect(bad).toEqual([]);
+    });
+  }
+
+  test("E91 계산 기준: 글이 많은 표는 좁은 화면에서 가로로 잘리지 않고, 배지는 한 줄이다", async ({ page }) => {
+    await page.goto("/basis");
+    const info = await page.evaluate(() => {
+      const wide = window.innerWidth < 640;
+      const clipped = Array.from(document.querySelectorAll<HTMLElement>(".tbl-stack"))
+        .filter((t) => wide && t.closest<HTMLElement>(".tbl-wrap")!.scrollWidth > t.closest<HTMLElement>(".tbl-wrap")!.clientWidth + 1)
+        .map((t) => t.closest("section")?.id ?? t.className);
+      const badges = Array.from(document.querySelectorAll<HTMLElement>(".tbl .badge")).filter((b) => b.getBoundingClientRect().height > 30).map((b) => b.textContent);
+      return { clipped, badges, tables: document.querySelectorAll(".tbl-stack").length };
+    });
+    expect(info.tables).toBeGreaterThanOrEqual(3);
+    expect(info.clipped).toEqual([]);
+    expect(info.badges).toEqual([]);
+  });
+
+  test("E92 '곧 바뀌는 것' 안내 바는 아래 결과 영역과 오른쪽 끝이 맞는다", async ({ page }) => {
+    await page.goto(`/salary?asOf=${AS_OF}`);
+    const [u, r] = await Promise.all([page.locator(".upcoming").boundingBox(), page.locator("#result").boundingBox()]);
+    expect(u && r).toBeTruthy();
+    expect(Math.abs(u!.x + u!.width - (r!.x + r!.width))).toBeLessThanOrEqual(2);
+  });
+
+  for (const path of PAGES) {
+    test(`E93 ${path}: 화면에 코드 조각(\${…}·undefined·NaN)이 보이지 않는다`, async ({ page }) => {
+      await page.goto(path);
+      await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+      const text = await page.locator("body").innerText();
+      expect(text).not.toMatch(/\$\{|\bundefined\b|\bNaN\b|\[object /);
+    });
+  }
+
+  test("E94 급여: 공제 방식에 3.3% 가 없고, 시급제 안내 문구에 월 소정시간이 숫자로 보인다", async ({ page }) => {
+    await page.goto(`/payroll?asOf=${AS_OF}&kind=hourly`);
+    await expect(page.getByRole("radio", { name: /3\.3%/ })).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: "4대보험+세금" })).toBeVisible();
+    await expect(page.getByText(/주 40시간 = 월 209시간/)).toBeVisible();
+    await page.goto(`/payroll?asOf=${AS_OF}&deduction=tax33&basePay=3000000`);
+    await expect(page.getByRole("radio", { name: "4대보험+세금" })).toBeChecked();
+  });
+});
+
 test.describe("공유·내려받기·신고", () => {
   test("E30 링크 만들기 → /r/{id} 에서 같은 결과", async ({ page }) => {
     await page.goto(`/salary?asOf=${AS_OF}&annual=40000000`);
