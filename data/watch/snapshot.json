@@ -240,6 +240,94 @@
     "kind": "타법개정"
    }
   ],
+  "조세특례제한법": [
+   {
+    "status": "현행",
+    "mst": "284389",
+    "promulgated": "20260317",
+    "effective": "20260918",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "212779",
+    "promulgated": "20191231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "247473",
+    "promulgated": "20221231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "257993",
+    "promulgated": "20231231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "267555",
+    "promulgated": "20241231",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "280409",
+    "promulgated": "20251223",
+    "effective": "20270101",
+    "kind": "일부개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289553",
+    "promulgated": "20260915",
+    "effective": "20270316",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "286937",
+    "promulgated": "20260616",
+    "effective": "20270617",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "289379",
+    "promulgated": "20260908",
+    "effective": "20270909",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "91270",
+    "promulgated": "20090130",
+    "effective": "20280101",
+    "kind": "타법개정"
+   }
+  ],
+  "조세특례제한법 시행령": [
+   {
+    "status": "현행",
+    "mst": "288915",
+    "promulgated": "20260818",
+    "effective": "20260918",
+    "kind": "타법개정"
+   },
+   {
+    "status": "시행예정",
+    "mst": "283625",
+    "promulgated": "20260227",
+    "effective": "20270101",
+    "kind": "일부개정"
+   }
+  ],
   "국민연금법": [
    {
     "status": "현행",

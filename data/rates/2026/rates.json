@@ -41,6 +41,18 @@
     "S9": {
       "title": "고용보험 및 산업재해보상보험의 보험료징수 등에 관한 법률 시행령 제56조의5(예술인)·제56조의6(노무제공자) — 고용보험료율 1천분의 16, 노무제공자는 월 보수액 × 료율의 1/2 (시행 2025.12.23)",
       "url": "https://www.law.go.kr/법령/고용보험및산업재해보상보험의보험료징수등에관한법률시행령"
+    },
+    "S10": {
+      "title": "소득세법 제47조(근로소득공제)·제50조·제51조(인적공제)·제51조의3(연금보험료공제)·제52조(특별소득공제)·제59조(근로소득세액공제)·제59조의2(자녀세액공제)·제59조의3(연금계좌세액공제)·제59조의4(특별세액공제·표준세액공제)·제61조(세액공제 한도)·제137조(연말정산) — 시행 2026.7.1",
+      "url": "https://www.law.go.kr/법령/소득세법"
+    },
+    "S11": {
+      "title": "조세특례제한법 제126조의2(신용카드 등 사용금액 소득공제, 2026.1.1 시행 개정)·제132조의2(소득공제 종합한도 2,500만원)·제87조(주택청약종합저축 소득공제)·제95조의2(월세 세액공제)·제58조(고향사랑 기부금 세액공제) — 시행 2026.9.18",
+      "url": "https://www.law.go.kr/법령/조세특례제한법"
+    },
+    "S12": {
+      "title": "조세특례제한법 시행령 제121조의2(신용카드 등 사용금액 소득공제 — 가족 사용액 합산 대상, 자녀 추가 한도 요건)",
+      "url": "https://www.law.go.kr/법령/조세특례제한법시행령"
     }
   },
   "nps": {
@@ -229,6 +241,64 @@
     ],
     "verified": {
       "all": true
+    }
+  },
+  "yearend": {
+    "note": "근로소득 연말정산(2026년 귀속). 숫자는 모두 법령 원문(S10~S12)에서 확인했다. 단수처리·4대보험 연간 추정·기납부세액 추정은 가정이다(FORMULAS U11~U13).",
+    "person": {
+      "salaryLimit": 5000000,
+      "incomeLimit": 1000000,
+      "parentMinAge": 60,
+      "childMaxAge": 20,
+      "seniorAge": 70,
+      "seniorExtra": 1000000
+    },
+    "earnedIncomeCredit": {
+      "lowUpTo": 1300000,
+      "lowRate": 0.55,
+      "base": 715000,
+      "overRate": 0.3,
+      "caps": [
+        { "upTo": 33000000, "cap": 740000, "from": 33000000, "slope": 0, "floor": 740000 },
+        { "upTo": 70000000, "cap": 740000, "from": 33000000, "slope": 0.008, "floor": 660000 },
+        { "upTo": 120000000, "cap": 660000, "from": 70000000, "slope": 0.5, "floor": 500000 },
+        { "upTo": null, "cap": 500000, "from": 120000000, "slope": 0.5, "floor": 200000 }
+      ]
+    },
+    "child": {
+      "creditMinAge": 8,
+      "birth": { "first": 300000, "second": 500000, "third": 700000 }
+    },
+    "comprehensiveCap": 25000000,
+    "card": {
+      "minRatio": 0.25,
+      "highSalary": 70000000,
+      "rate": { "credit": 0.15, "debit": 0.3, "market": 0.4, "transit": 0.4, "culture": 0.3 },
+      "cap": {
+        "low": 3000000,
+        "high": 2500000,
+        "withChild": {
+          "low": { "one": 3500000, "twoOrMore": 4000000 },
+          "high": { "one": 2750000, "twoOrMore": 3000000 }
+        }
+      },
+      "extraCap": { "low": 3000000, "high": 2000000 }
+    },
+    "housingSavings": { "rate": 0.4, "payCap": 3000000, "salaryLimit": 70000000 },
+    "pension": { "rate": 0.12, "rateLow": 0.15, "lowSalary": 55000000, "savingsCap": 6000000, "totalCap": 9000000 },
+    "insurance": { "rate": 0.12, "cap": 1000000 },
+    "medical": { "rate": 0.15, "thresholdRatio": 0.03, "generalCap": 7000000, "youngMaxAge": 6, "seniorMinAge": 65 },
+    "education": { "rate": 0.15, "childCap": 3000000, "universityCap": 9000000, "universityMinAge": 19 },
+    "donation": { "rate": 0.15, "rateOver": 0.3, "overAmount": 10000000, "generalLimit": 0.3, "religiousLimit": 0.1, "religiousExtraLimit": 0.2 },
+    "rent": { "rate": 0.15, "rateLow": 0.17, "salaryLimit": 80000000, "lowSalary": 55000000, "incomeLimit": 70000000, "lowIncome": 45000000, "cap": 10000000 },
+    "hometown": { "tier1": 100000, "tier2": 200000, "max": 20000000, "ratio1Num": 100, "ratio1Den": 110, "rate2": 0.4, "rate3": 0.15 },
+    "standardCredit": 130000,
+    "sources": ["S10", "S11", "S12"],
+    "verified": {
+      "rules": true,
+      "rounding": false,
+      "insuranceEstimate": false,
+      "withholdingEstimate": false
     }
   },
   "taxFree": {

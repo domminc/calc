@@ -7,11 +7,15 @@ import { calcPayroll, parsePayrollInput, MAX_ALLOWANCES } from "../core/payroll.
 import { calcInsurance } from "../core/insurance.ts";
 import { parseInsuranceInput } from "../core/insurance-input.ts";
 import { calcNet, calcTab, calcW33, parseFreelancerInput } from "../core/freelancer.ts";
+import { calcMine, tips, yearContext } from "../core/yearend.ts";
+import { optimizeCouple } from "../core/yearend-couple.ts";
+import { MAX_DEPS, parseYearendInput } from "../core/yearend-input.ts";
 import { esc, wonText } from "./html.ts";
 import { adjustedList, noticeList, renderAnnualTax, renderInsurance, renderNet, renderPayroll, renderSalary, renderW33 } from "./result.ts";
+import { renderYearendCouple, renderYearendMe } from "./yearend-result.ts";
 
-export type CalcKey = "salary" | "payroll" | "insurance" | "freelancer";
-export const CALC_KEYS: readonly CalcKey[] = ["salary", "payroll", "insurance", "freelancer"];
+export type CalcKey = "salary" | "payroll" | "insurance" | "freelancer" | "yearend";
+export const CALC_KEYS: readonly CalcKey[] = ["salary", "payroll", "insurance", "freelancer", "yearend"];
 export const isCalcKey = (k: string): k is CalcKey => (CALC_KEYS as readonly string[]).includes(k);
 
 export interface ComputeOutput {
@@ -24,6 +28,9 @@ export interface ComputeOutput {
 }
 
 const PLAIN = ["asOf", "size", "wciRate", "family", "children"];
+/** 연말정산: 사람별 입력(a_·b_ 접두사)과 부양가족 행(d0_~) */
+const YE_PERSON = ["gross", "nt", "nps", "hi", "tax", "wf", "wc", "cc", "dc", "mk", "tr", "cu", "med", "medsp", "edu", "prem", "dl", "dg", "dr", "hs", "ps", "irp", "hsv", "rent", "nh", "birth"];
+const YE_DEP = ["rel", "year", "hi", "med", "edu", "prem", "cc", "dc"];
 const ALLOWED: Record<CalcKey, string[]> = {
   salary: ["mode", "annual", "targetNet", "severance", "nonTaxable", ...PLAIN],
   payroll: [
@@ -34,6 +41,12 @@ const ALLOWED: Record<CalcKey, string[]> = {
   freelancer: [
     "tab", "amountMode", "amount", "months", "revenue", "expenseMode", "expenseRate", "actualExpense", "persons", "children",
     "pension", "otherDeduction", "prepaid", "propertyScore", "cashExpense", "regionalNps", "eiRate", "asOf",
+  ],
+  yearend: [
+    "tab", "year", "asOf", "sc", "sd",
+    ...YE_PERSON.map((k) => `a_${k}`),
+    ...YE_PERSON.map((k) => `b_${k}`),
+    ...Array.from({ length: MAX_DEPS }, (_, n) => YE_DEP.map((k) => `d${n}_${k}`)).flat(),
   ],
 };
 
@@ -116,6 +129,18 @@ function computeInner(key: CalcKey, raw: Raw): ComputeOutput & { resolved?: Reso
       }
       const r = calcNet(p.value, resolved);
       return { html: adjustedList(p.adjusted) + renderNet(r, year, resolved.asOf), errors: {}, adjusted: p.adjusted, summary: { label: "월 실수령", value: wonText(r.netMonthly) }, ok: true, resolved };
+    }
+    case "yearend": {
+      const p = parseYearendInput(raw);
+      if (Object.keys(p.errors).length) return { html: errorPanel(p.errors), errors: p.errors, adjusted: p.adjusted, summary: null, ok: false };
+      const ctx = yearContext(p.value.year);
+      if (p.value.tab === "couple") {
+        const c = optimizeCouple(ctx, p.value.a, p.value.b, p.value.deps, p.value.sharedCredit, p.value.sharedDebit);
+        const total = c.best.a.settleTotal + c.best.b.settleTotal;
+        return { html: renderYearendCouple(p.value, ctx, c, p.adjusted), errors: {}, adjusted: p.adjusted, summary: { label: total < 0 ? "부부 예상 환급" : "부부 추가 납부", value: wonText(Math.abs(total)) }, ok: true, resolved: ctx.resolved };
+      }
+      const r = calcMine(ctx, p.value.a, p.value.deps);
+      return { html: renderYearendMe(p.value, ctx, r, tips(ctx, p.value.a, p.value.deps, r), p.adjusted), errors: {}, adjusted: p.adjusted, summary: { label: r.settleTotal < 0 ? "예상 환급" : "추가 납부", value: wonText(Math.abs(r.settleTotal)) }, ok: true, resolved: ctx.resolved };
     }
   }
 }

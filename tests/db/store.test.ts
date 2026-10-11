@@ -54,6 +54,24 @@ d("DB 연동 (공유·신고·통계·제한)", () => {
     expect(row!.inputs).toMatchObject({ annual: "40000000" }); // 콤마 제거
   });
 
+  it("DB-02b 연말정산 공유·신고·조회 집계: 마이그레이션이 'yearend' 를 허용한다", async () => {
+    const res = await post("/api/share", { calculator: "yearend", inputs: { tab: "couple", a_gross: "90,000,000", b_gross: "30000000", d0_rel: "child", d0_year: "2016", asOf: "2026-10-10", evil: "x" } }, "9.9.8.1");
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: string };
+    const page = await req(`/r/${id}`);
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain("부부 합계");
+    const [row] = await sql`select calculator, inputs from shared_results where id = ${id}`;
+    expect(row).toMatchObject({ calculator: "yearend" });
+    expect(row!.inputs).toMatchObject({ a_gross: "90000000", d0_rel: "child" });
+    expect(row!.inputs).not.toHaveProperty("evil");
+    expect((await post("/api/feedback", { calculator: "yearend", message: "연말정산 신고 테스트" }, "9.9.8.2")).status).toBe(204);
+    expect((await req("/yearend?asOf=2026-10-10")).status).toBe(200);
+    await Promise.all(pending);
+    const [u] = await sql<{ n: number }[]>`select coalesce(sum(view_count),0)::int as n from usage_daily where calculator = 'yearend'`;
+    expect(u!.n).toBeGreaterThanOrEqual(1);
+  });
+
   it("DB-03 공유: 잘못된 입력·알 수 없는 계산기·큰 요청은 거절", async () => {
     expect((await post("/api/share", { calculator: "salary", inputs: { annual: "abc" } }, "9.9.9.1")).status).toBe(400);
     expect((await post("/api/share", { calculator: "tax", inputs: {} }, "9.9.9.2")).status).toBe(400);

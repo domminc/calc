@@ -27,6 +27,7 @@ const SPRITE = `<svg class="sprite" width="0" height="0" aria-hidden="true" focu
 <symbol id="i-payroll" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></symbol>
 <symbol id="i-insurance" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
 <symbol id="i-freelancer" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19.5h20"/></symbol>
+<symbol id="i-yearend" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h4"/><path d="m13 17 2 2 3.5-4"/></symbol>
 <symbol id="i-more" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></symbol>
@@ -47,6 +48,7 @@ const TAB_ITEMS: { href: string; label: string; ico: string }[] = [
   { href: "/payroll", label: "급여", ico: "payroll" },
   { href: "/insurance", label: "4대보험", ico: "insurance" },
   { href: "/freelancer", label: "프리랜서", ico: "freelancer" },
+  { href: "/yearend", label: "연말정산", ico: "yearend" },
   { href: "/basis", label: "기준", ico: "more" },
 ];
 

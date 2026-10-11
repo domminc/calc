@@ -1,6 +1,6 @@
 # homesell 계산기
 
-- 기획·계산식·QA 는 docs/ 가 정본이다: PLANNING.md(범위), FORMULAS.md(식·출처·미확정 U1~U10), QA-PLAN.md(시나리오·결함 이력), DESIGN.md(화면·반응형), LAW-WATCH.md(법령 변경 대응), DEPLOY.md(배포·장애). 계산을 바꾸면 **FORMULAS.md → 코드 → 테스트** 순으로 같이 고친다.
+- 기획·계산식·QA 는 docs/ 가 정본이다: PLANNING.md(범위), FORMULAS.md(식·출처·미확정 U1~U13), QA-PLAN.md(시나리오·결함 이력), DESIGN.md(화면·반응형), LAW-WATCH.md(법령 변경 대응), DEPLOY.md(배포·장애). 계산을 바꾸면 **FORMULAS.md → 코드 → 테스트** 순으로 같이 고친다.
 - 검사: `npm run typecheck` · `npm run lint` · `npm test` · `npm run test:db`(임시 Postgres) · `npm run test:e2e`(임시 Postgres + 로컬 Worker + Playwright).
 - 계산 코어(`src/core`)는 서버·브라우저 공용 순수 함수다. DB·fetch·DOM 을 import 하지 않는다. 금액은 원 단위 정수, 요율은 `ppm()` 정수 비율로 곱한다 (부동소수 금지).
 - 요율·표는 `data/rates/<연도>/` 만 고친다. 원문 PDF 는 `data/source/` 에 보관하고, 확인 못 한 값은 `verified:false` + `/basis` 미확정 목록(`src/server/basis.ts`)에 올린다. 블로그 수치를 근거로 쓰지 않는다 (법령·공단·정부 원문만).

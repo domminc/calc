@@ -32,6 +32,7 @@ export const CALCS: Record<CalcKey, CalcMeta> = {
   payroll: { key: "payroll", path: "/payroll", name: "급여 계산기", short: "급여", h1: "급여 계산기 (월급·시급)", intro: "월급제는 수당과 연장·야간·휴일근로까지, 시급제는 주휴수당까지 반영해 지급 내역과 공제 내역, 차인지급액을 보여줘요." },
   insurance: { key: "insurance", path: "/insurance", name: "4대보험 계산기", short: "4대보험", h1: "4대보험 계산기 (근로자·사업주)", intro: "월 보수를 넣으면 보험별 근로자 부담, 사업주 부담, 총액을 한눈에 보여줘요. 기준일에 따라 국민연금 상·하한과 요율이 자동으로 바뀌어요." },
   freelancer: { key: "freelancer", path: "/freelancer", name: "프리랜서 계산기", short: "프리랜서", h1: "프리랜서 계산기 (원천징수·종합소득세·건보료)", intro: "원천징수를 뗀 실수령(또는 필요한 세전 금액), 다음 해 5월 종합소득세 정산, 지역가입자 건강보험료까지 이어서 계산해요." },
+  yearend: { key: "yearend", path: "/yearend", name: "연말정산 계산기", short: "연말정산", h1: "연말정산 계산기 (환급금 예측·부부 공제 비교)", intro: "총급여와 가족·지출을 넣으면 연말정산 환급액(또는 추가 납부액)을 예측해요. 부부라면 부양가족과 카드 공제를 누가 받는 게 유리한지도 모든 경우를 계산해 비교해요." },
 };
 
 /** 요율 세트에서 읽은 제목·설명·FAQ — 법이 바뀌어 데이터가 바뀌면 문구도 함께 바뀐다 */
@@ -94,6 +95,20 @@ export function seoFor(key: CalcKey, rs: Resolved): CalcSeo {
           { q: "단순경비율은 어디서 확인하나요?", a: `업종코드(예: 940909)에 따라 달라요. 홈택스 > 세금신고 > 종합소득세 > 경비율 조회에서 확인할 수 있어요. 이 계산기의 기본값 ${pct(r.freelancer.defaultSimpleExpenseRate)}는 예시이니 꼭 바꿔서 사용하세요.` },
         ],
       };
+    case "yearend": {
+      const ye = r.yearend;
+      return {
+        title: `연말정산 계산기 ${y} — 환급금 예측·부부 중 누가 공제받을까 | homesell 계산기`,
+        description: `${y}년 귀속 연말정산 환급액·추가 납부액을 예측하고, 부부 중 누가 부양가족·카드 공제를 받아야 유리한지 모든 경우를 계산해 비교해요. 소득세법·조세특례제한법 원문 기준${prov}.`,
+        faq: [
+          { q: "연말정산 환급액은 어떻게 계산하나요?", a: "총급여에서 근로소득공제와 인적공제·4대보험·카드 등 소득공제를 뺀 과세표준에 기본세율을 적용해 산출세액을 구하고, 근로소득세액공제·자녀·연금계좌·특별(표준)세액공제를 뺀 결정세액을 구해요. 이 결정세액이 한 해 동안 매달 이미 낸 소득세(원천징수)보다 적으면 환급, 많으면 추가 납부예요." },
+          { q: "카드는 얼마를 써야 공제되나요?", a: `총급여의 ${pct(ye.card.minRatio)}(최저사용금액)를 넘는 부분부터 공제돼요. 신용카드 ${pct(ye.card.rate.credit)}, 체크카드·현금영수증 ${pct(ye.card.rate.debit)}, 전통시장·대중교통 ${pct(ye.card.rate.market)}를 공제하고, 한도는 총급여 ${comma(ye.card.highSalary)}원 이하 ${comma(ye.card.cap.low)}원, 초과 ${comma(ye.card.cap.high)}원이에요(자녀가 있으면 더 늘어요).` },
+          { q: "부부 중 누가 공제받는 게 유리한가요?", a: `부양가족 인적공제와 자녀 세액공제는 과세표준 세율이 높은 쪽이, 의료비(총급여의 ${pct(ye.medical.thresholdRatio)} 초과분만 공제)와 카드(최저사용금액 초과분만 공제)는 총급여가 낮은 쪽이 유리한 경우가 많아요. 사람마다 달라서 이 계산기는 모든 배분을 직접 계산해 세금이 가장 적은 안을 골라 줘요. 한 명의 부양가족을 부부가 동시에 공제받을 수는 없어요.` },
+          { q: "부양가족 공제 조건은 무엇인가요?", a: `직계비속은 ${ye.person.childMaxAge}세 이하, 직계존속은 ${ye.person.parentMinAge}세 이상이고 연 소득금액 ${comma(ye.person.incomeLimit)}원(근로소득만 있으면 총급여 ${comma(ye.person.salaryLimit)}원) 이하여야 해요. 나이는 출생연도로 판정해요. 의료비·교육비는 나이·소득 제한이 없어요.` },
+          { q: "계산 결과가 홈택스와 다를 수 있나요?", a: "네. 4대보험과 이미 낸 소득세는 총급여로 추정하고(직접 입력하면 정확해져요), 장기주택저당차입금 이자·장애인 공제 등 일부 항목은 반영하지 않아요. 확정 금액은 국세청 연말정산 간소화 자료와 회사 정산이 기준이에요." },
+        ],
+      };
+    }
   }
 }
 
@@ -102,5 +117,6 @@ export const NAV: { href: string; label: string }[] = [
   { href: "/payroll", label: "급여" },
   { href: "/insurance", label: "4대보험" },
   { href: "/freelancer", label: "프리랜서" },
+  { href: "/yearend", label: "연말정산" },
   { href: "/basis", label: "계산 기준" },
 ];
