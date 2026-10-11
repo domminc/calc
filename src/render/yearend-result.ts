@@ -29,8 +29,32 @@ function stepTable(rows: Step[], head = ["단계", "계산 근거", "금액"]): 
   return `<div class="tbl-wrap" tabindex="0" role="region" aria-label="표 (옆으로 스크롤할 수 있어요)"><table class="tbl"><thead><tr><th scope="col">${head[0]}</th><th scope="col" class="basis">${head[1]}</th><th scope="col" class="amt">${head[2]}</th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
+/** 프리랜서(사업소득) 한 사람의 계산 과정 (수입금액 → 5월 종합소득세 정산) */
+function freelancerSteps(ctx: YearCtx, p: PersonInput, r: PersonResult): Step[] {
+  const c = r.credits;
+  const b = r.base;
+  const est = (flag: boolean, text: string) => (flag ? text : "직접 입력한 값");
+  return [
+    { label: "수입금액", basis: "연 수입(원천징수 떼기 전 총액)", amount: r.salary, always: true },
+    { label: "− 필요경비", basis: p.expenseMode === "rate" ? `수입 × 단순경비율 ${pct(p.expenseRate)}` : "직접 입력한 실제 경비", amount: r.earnedDeduction, always: true },
+    { label: "= 사업소득금액", basis: "수입금액 − 필요경비", amount: r.earnedIncome, sum: true, always: true },
+    { label: "− 인적공제", basis: `${r.headcount}명 × ${wonText(ctxBasic(ctx))}${r.senior ? ` + 경로우대 ${wonText(r.senior)}` : ""}`, amount: r.basic + r.senior, always: true },
+    { label: "− 국민연금(연금보험료공제)", basis: est(b.npsEstimated, "사업소득으로 지역가입자 보험료 추정 (제51조의3)"), amount: r.nps },
+    { label: "= 과세표준", basis: "사업소득금액 − 소득공제 합계", amount: r.taxBase, sum: true, always: true },
+    { label: "산출세액", basis: `기본세율 ${pct(r.marginalRate)} 구간 (소득세법 제55조)`, amount: r.computedTax, sum: true, always: true },
+    { label: "− 자녀세액공제", basis: `8세 이상 자녀${c.birth ? " + 출산·입양" : ""} (제59조의2)`, amount: c.child + c.birth },
+    { label: "− 연금계좌세액공제", basis: "연금저축·IRP 납입액 기준 (제59조의3)", amount: c.pension },
+    { label: "− 표준세액공제", basis: "근로소득이 없는 종합소득자 (제59조의4 제9항)", amount: c.standard, always: true },
+    { label: "= 결정세액", basis: c.capped ? "세액공제가 산출세액을 넘어 0원까지만" : "산출세액 − 세액공제", amount: r.determinedTax, sum: true, always: true },
+    { label: "+ 지방소득세", basis: "결정세액의 10%", amount: r.localTax, always: true },
+    { label: "− 이미 낸 세금", basis: `소득세 ${wonText(r.prepaidTax)} + 지방소득세 ${wonText(r.prepaidLocal)} (${est(b.prepaidEstimated, "수입의 원천징수 3%로 추정")})`, amount: r.prepaidTax + r.prepaidLocal, always: true },
+    { label: r.settleTotal < 0 ? "= 예상 환급액 (5월 신고)" : "= 예상 추가 납부액 (5월 신고)", basis: "결정세액 + 지방소득세 − 이미 낸 세금", amount: Math.abs(r.settleTotal), sum: true, always: true },
+  ];
+}
+
 /** 한 사람의 계산 과정 (총급여 → 환급·추가납부) */
 export function personSteps(ctx: YearCtx, p: PersonInput, r: PersonResult): Step[] {
+  if (r.kind === "freelancer") return freelancerSteps(ctx, p, r);
   const y = ctx.rates.yearend;
   const c = r.credits;
   const b = r.base;
@@ -81,12 +105,23 @@ const NOT_COVERED = [
   "전년도 이월 기부금, 퇴직·중도 입사 연도, 두 곳 이상에서 받은 근로소득, 외국납부세액",
 ];
 
-function coverage(): string {
-  return details("이 계산기가 반영하지 않는 항목", `<ul>${NOT_COVERED.map((t) => `<li>${esc(t)}</li>`).join("")}</ul><p class="muted">해당하면 홈택스 '연말정산 미리보기'나 회사 담당자에게 확인하세요.</p>`);
+const NOT_COVERED_FREELANCER = [
+  "프리랜서: 성실사업자 표준세액공제(12만원), 노란우산공제 등 사업자 소득공제, 기부금(사업소득만 있으면 필요경비로만), 월세·고향사랑 기부금 세액공제",
+  "프리랜서: 건강보험료는 소득공제가 되지 않아 계산에 넣지 않았고, 다른 소득(근로·이자·배당 등)과의 합산은 하지 않았어요",
+];
+
+function coverage(freelancer = false): string {
+  const list = [...NOT_COVERED, ...(freelancer ? NOT_COVERED_FREELANCER : [])];
+  return details("이 계산기가 반영하지 않는 항목", `<ul>${list.map((t) => `<li>${esc(t)}</li>`).join("")}</ul><p class="muted">해당하면 홈택스 '연말정산 미리보기'나 회사 담당자에게 확인하세요.</p>`);
 }
 
 function estimateNotices(r: PersonResult, who = ""): Notice[] {
   const out: Notice[] = [];
+  if (r.kind === "freelancer") {
+    if (r.base.npsEstimated) out.push({ level: "info", code: "ins-est", text: `${who}국민연금(지역가입)은 사업소득으로 추정한 값이에요. 납부 내역의 연간 합계를 '직접 입력'하면 더 정확해요.` });
+    if (r.base.prepaidEstimated) out.push({ level: "info", code: "prepaid-est", text: `${who}이미 낸 소득세는 수입의 원천징수 3%로 추정한 값이에요. 실제로 뗀 금액을 '직접 입력'하면 더 정확해요.` });
+    return out;
+  }
   if (r.base.npsEstimated || r.base.healthEstimated) out.push({ level: "info", code: "ins-est", text: `${who}4대보험료는 총급여로 추정한 값이에요. 급여명세서의 합계를 '직접 입력'하면 더 정확해요.` });
   if (r.base.prepaidEstimated) out.push({ level: "info", code: "prepaid-est", text: `${who}이미 낸 소득세는 간이세액표로 추정한 값이에요. 급여명세서의 소득세 합계를 '직접 입력'하면 환급액이 더 정확해요.` });
   return out;
@@ -145,12 +180,13 @@ export function renderYearendCouple(inp: YearendInput, ctx: YearCtx, c: CoupleRe
   const cardHtml = hasShared
     ? `<section><h3>공동 카드 지출은 누구 카드로 쓸까</h3><p>${
         bPct === 0 ? "<b>나</b>의 카드로 모두 쓰는 게 유리해요." : bPct === 100 ? "<b>배우자</b>의 카드로 모두 쓰는 게 유리해요." : `<b>나 ${100 - bPct}% · 배우자 ${bPct}%</b>로 나눠 쓰는 게 유리해요.`
-      } ${c.cardIfAllA > 0 ? `모두 나에게 몰면 세금 +${money(c.cardIfAllA)}, ` : ""}${c.cardIfAllB > 0 ? `모두 배우자에게 몰면 +${money(c.cardIfAllB)}` : ""}</p><p class="muted">카드 공제는 총급여의 ${pct(ctx.rates.yearend.card.minRatio)}(최저사용금액)를 넘는 부분부터 시작하므로, 보통 한쪽에 몰아야 유리해요.</p></section>`
+      } ${[c.cardIfAllA > 0 ? `모두 나에게 몰면 세금 +${money(c.cardIfAllA)}` : "", c.cardIfAllB > 0 ? `모두 배우자에게 몰면 +${money(c.cardIfAllB)}` : ""].filter(Boolean).join(", ")}</p><p class="muted">카드 공제는 총급여의 ${pct(ctx.rates.yearend.card.minRatio)}(최저사용금액)를 넘는 부분부터 시작하므로, 보통 한쪽에 몰아야 유리해요.</p></section>`
     : "";
   const tip = `<p class="muted">한계세율 — 나 <b>${pct(c.marginalA)}</b> · 배우자 <b>${pct(c.marginalB)}</b>. 인적공제·자녀 공제는 세율이 높은 쪽이, 의료비(총급여의 ${pct(ctx.rates.yearend.medical.thresholdRatio)} 초과분)와 카드(최저사용금액)는 총급여가 낮은 쪽이 유리한 경우가 많아요. 이 계산기는 모든 배분을 직접 계산해 가장 유리한 안을 골랐어요(${comma(c.evaluated)}가지).</p>`;
   const extra: string[] = [];
   if (c.baseA.prepaidEstimated || c.baseB.prepaidEstimated) extra.push("기납부세액 추정");
   if (c.baseA.npsEstimated || c.baseB.npsEstimated) extra.push("4대보험 추정");
+  if (c.baseA.kind === "freelancer" || c.baseB.kind === "freelancer") extra.push("5월 종소세 포함");
   const headline =
     best.maskB === 0 && best.shareB === 0 && c.moves.length
       ? "부양가족 모두 <b>나</b>에게 공제받는 게 가장 유리해요."
@@ -161,12 +197,17 @@ export function renderYearendCouple(inp: YearendInput, ctx: YearCtx, c: CoupleRe
           : "나눌 부양가족이 없어요.";
   const sub = `${headline} · 나 ${signed(best.a.settleTotal)} · 배우자 ${signed(best.b.settleTotal)}`;
   const notices = [...estimateNotices(best.a, "나의 "), ...estimateNotices(best.b, "배우자의 ")];
-  const steps = (label: string, p: PersonInput, r: PersonResult) => details(`${label} 계산 과정 (추천 배분 기준)`, stepTable(personSteps(ctx, p, r)));
+  const anyFree = best.a.kind === "freelancer" || best.b.kind === "freelancer";
+  const freeNote = anyFree
+    ? `<section><h3>프리랜서가 있을 때 달라지는 점</h3><ul class="tip-list"><li>${[best.a.kind === "freelancer" ? "나" : "", best.b.kind === "freelancer" ? "배우자" : ""].filter(Boolean).join("·")}는 근로소득이 없어 <b>5월 종합소득세</b>로 정산해요. 이 계산에서는 연말정산 환급과 5월 정산액을 합쳐서 보여 줘요.</li><li>프리랜서는 <b>카드 소득공제와 의료비·교육비·보험료 공제를 받을 수 없어요</b>(근로소득이 있는 사람만 해당). 그래서 가족의 이런 지출과 공동 카드는 근로자 쪽에서만 공제돼요.</li><li>자녀·부모 <b>인적공제와 자녀세액공제</b>는 두 사람 모두 받을 수 있어서, 세율이 높은 쪽(또는 위 비교표에서 세금이 적은 쪽)이 유리해요.</li><li>프리랜서 배우자의 의료비는 <b>근로자 배우자가 직접 낸 경우</b> 근로자의 '배우자 의료비'로 공제받을 수 있어요(소득과 관계없이 배우자는 대상).</li></ul></section>`
+    : "";
+  const tag = (r: PersonResult) => (r.kind === "freelancer" ? "(프리랜서)" : "");
+  const steps = (label: string, p: PersonInput, r: PersonResult) => details(`${label}${tag(r)} 계산 과정 (추천 배분 기준)`, stepTable(personSteps(ctx, p, r)));
   return `<div class="result-inner">${panel(badges(inp.year, inp.asOf, extra).replace("년 기준", "년 귀속"), hero("부부 합계 예상 추가 납부액", sumSettle, sub, "부부 합계 예상 환급액"))}
 ${adjusted.length ? `<ul class="notices">${adjusted.map((t) => `<li class="notice notice-info">${esc(t)}</li>`).join("")}</ul>` : ""}${noticeList(notices)}
 <section><h3>배분별 세금 비교</h3>${scenarios}</section>
-${depsHtml}${cardHtml}${tip}
+${depsHtml}${cardHtml}${freeNote}${tip}
 ${steps("나의", inp.a, best.a)}${steps("배우자의", inp.b, best.b)}
-${coverage()}
+${coverage(anyFree)}
 <p class="disclaimer">${esc(disclaimer)} 실제로는 가족 한 명을 부부가 동시에 공제받을 수 없고, 의료비·교육비는 실제로 낸 사람만 공제받아요. 카드 사용액은 본인 명의 카드만 공제돼요.</p></div>`;
 }

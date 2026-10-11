@@ -2,10 +2,11 @@
 import type { FieldErrors } from "../core/types.ts";
 import { SUPPORTED_YEARS, resolveRates } from "../core/rates.ts";
 import { pct } from "../core/money.ts";
+import { w33Labels, w33RatesOf } from "../core/freelancer.ts";
 import { MAX_DEPS, type YearendInput } from "../core/yearend-input.ts";
 import type { Dep, PersonInput } from "../core/yearend.ts";
 import { comma, esc } from "./html.ts";
-import { check, dateInput, money, segmented, select, stepper } from "./forms.ts";
+import { check, dateInput, decimal, money, segmented, select, stepper } from "./forms.ts";
 
 type Errors = FieldErrors;
 
@@ -35,7 +36,7 @@ export function depRow(n: number, d: Dep, errors: Errors, year: number): string 
 
 type Y = ReturnType<typeof resolveRates>["set"]["rates"]["yearend"];
 
-function personFields(p: "a_" | "b_", v: PersonInput, errors: Errors, y: Y, tab: "me" | "couple"): string {
+function workerFields(p: "a_" | "b_", v: PersonInput, errors: Errors, y: Y, tab: "me" | "couple"): string {
   const m = (field: string, label: string, value: number, hint?: string) => money({ name: p + field, label, value, errors, ...(hint ? { hint } : {}), hangul: false });
   const adv = (field: string, label: string, value: number | undefined, hint: string) =>
     money({ name: p + field, label, value: value === undefined ? "" : value, errors, hint, hangul: false, optional: true });
@@ -50,7 +51,7 @@ ${m("cu", "도서·공연·박물관·영화·체육시설", v.culture, `총급�
 </details>
 <details class="more"><summary>의료비·교육비·보험료 (본인분)</summary>
 ${m("med", "본인 의료비", v.medical, "실손보험으로 돌려받은 금액은 빼세요. 미용·성형은 제외예요.")}
-<div data-when="tab=couple"${tab === "couple" ? "" : " hidden"}>${m("medsp", "배우자를 위해 내가 낸 의료비", v.medicalSpouse, "의료비는 낸 사람이 공제받아요.")}</div>
+<div data-when="tab=couple"${tab === "couple" ? "" : " hidden"}>${m("medsp", "배우자를 위해 내가 낸 의료비", v.medicalSpouse, "의료비는 낸 사람이 공제받아요. 배우자가 프리랜서라면 그 의료비를 내가 냈을 때 여기에 넣으세요(프리랜서 본인은 공제를 받을 수 없어요).")}</div>
 ${m("edu", "본인 교육비", v.education, "대학원·직업훈련 등. 자녀 교육비는 부양가족에 넣으세요.")}
 ${m("prem", "보장성 보험료", v.premium, `보장성 보험만 해당(저축성 제외). 연 ${comma(y.insurance.cap)}원까지 반영돼요.`)}
 </details>
@@ -78,14 +79,44 @@ ${adv("tax", "올해 이미 낸 소득세 (원천징수 합계)", v.prepaidOverr
 </details>`;
 }
 
+/** 프리랜서(사업소득, 5월 종합소득세 신고) 입력 */
+function freelancerFields(p: "a_" | "b_", v: PersonInput, errors: Errors, y: Y, rates: ReturnType<typeof resolveRates>["set"]["rates"]): string {
+  const m = (field: string, label: string, value: number, hint?: string) => money({ name: p + field, label, value, errors, ...(hint ? { hint } : {}), hangul: false });
+  const adv = (field: string, label: string, value: number | undefined, hint: string) =>
+    money({ name: p + field, label, value: value === undefined ? "" : value, errors, hint, hangul: false, optional: true });
+  const rate = v.expenseRate || rates.freelancer.defaultSimpleExpenseRate;
+  return `<p class="hint">근로소득이 없는 프리랜서는 5월에 <b>종합소득세</b>로 정산해요. 카드 소득공제와 의료비·교육비·보험료 공제는 받을 수 없어요(근로소득이 있는 사람만 해당).</p>
+${money({ name: `${p}rev`, label: `연 수입금액 (원천징수 ${w33Labels(w33RatesOf(rates)).total} 떼기 전 총액)`, value: v.revenue || 36_000_000, errors, slider: { min: 10_000_000, max: 200_000_000, step: 1_000_000 }, hint: "받은 금액의 합계(세전)예요." })}
+${segmented({ name: `${p}xm`, label: "필요경비 방식", value: v.expenseMode, options: [{ value: "rate", label: "단순경비율" }, { value: "actual", label: "실제 경비" }] })}
+<div data-when="${p}xm=rate"${v.expenseMode === "rate" ? "" : " hidden"}>${decimal({ name: `${p}xr`, label: "단순경비율", value: String(+(rate * 100).toFixed(2)), suffix: "%", hint: `업종코드별로 달라요. 기본값 ${pct(rates.freelancer.defaultSimpleExpenseRate)}는 예시예요. 홈택스 경비율 조회 값으로 바꿔 주세요.`, errors })}</div>
+<div data-when="${p}xm=actual"${v.expenseMode === "actual" ? "" : " hidden"}>${m("xa", "실제 경비", v.actualExpense, "증빙할 수 있는 필요경비 합계예요.")}</div>
+${adv("fnps", "연 국민연금 납부액 (지역가입)", v.npsOverride, "비워 두면 사업소득으로 추정해요. 납부액 전액이 소득공제돼요.")}
+${adv("ftax", "올해 이미 낸 소득세 (원천징수 합계)", v.prepaidOverride, `비워 두면 수입의 ${pct(rates.freelancer.withholdingIncome)}로 계산해요. 지방소득세는 자동으로 계산해요.`)}
+<details class="more"><summary>연금저축·출산·입양</summary>
+${m("fps", "연금저축 납입액", v.pensionSavings, `연 ${comma(y.pension.savingsCap)}원, IRP를 합쳐 연 ${comma(y.pension.totalCap)}원까지 세액공제돼요.`)}
+${m("firp", "IRP·퇴직연금 납입액", v.irp)}
+<div class="field"><label for="f-${p}fbirth">올해 출산·입양한 자녀</label><select id="f-${p}fbirth" name="${p}fbirth">${[["0", "없음"], ["1", "첫째"], ["2", "둘째"], ["3", "셋째 이상"]].map(([val, t]) => `<option value="${val}"${String(v.birthChild) === val ? " selected" : ""}>${t}</option>`).join("")}</select></div>
+</details>`;
+}
+
+function personFields(p: "a_" | "b_", v: PersonInput, errors: Errors, y: Y, tab: "me" | "couple", rates: ReturnType<typeof resolveRates>["set"]["rates"]): string {
+  const couple = tab === "couple";
+  const free = v.kind === "freelancer";
+  const kindSel = `<div data-when="tab=couple"${couple ? "" : " hidden"}>${segmented({ name: `${p}kind`, label: "소득 유형", value: v.kind, options: [{ value: "worker", label: "근로소득 (정규직)" }, { value: "freelancer", label: "프리랜서 (5월 종소세)" }] })}</div>`;
+  return `${kindSel}
+<div data-when="${p}kind=worker"${free ? " hidden" : ""}>${workerFields(p, v, errors, y, tab)}</div>
+<div data-when="${p}kind=freelancer"${free ? "" : " hidden"}>${freelancerFields(p, v, errors, y, rates)}</div>`;
+}
+
 export function yearendForm(i: YearendInput, errors: Errors): string {
-  const y = resolveRates(`${i.year}-12-31`).set.rates.yearend;
+  const rates = resolveRates(`${i.year}-12-31`).set.rates;
+  const y = rates.yearend;
   const couple = i.tab === "couple";
   const depRows = i.deps.map((d, n) => depRow(n, d, errors, i.year)).join("");
   return `${segmented({ name: "tab", label: "무엇을 확인할까요?", value: i.tab, options: [{ value: "me", label: "내 연말정산 예측" }, { value: "couple", label: "부부 중 누가 공제받을까" }] })}
 ${select({ name: "year", label: "귀속연도 (소득을 번 해)", value: String(i.year), options: SUPPORTED_YEARS.map((v) => ({ value: String(v), label: `${v}년 소득` })), hint: "올해 번 소득의 연말정산은 내년 2월 급여에서 정산돼요." })}
 <div class="grp-title" data-when="tab=couple"${couple ? "" : " hidden"}><b>나</b></div>
-${personFields("a_", i.a, errors, y, i.tab)}
+${personFields("a_", i.a, errors, y, i.tab, rates)}
 <div class="deps" data-deps data-max="${MAX_DEPS}">
 <div class="allow-head"><b>부양가족</b><span class="hint" data-when="tab=me"${couple ? " hidden" : ""}>배우자·자녀·부모를 넣으면 인적공제와 가족 지출 공제가 반영돼요.</span><span class="hint" data-when="tab=couple"${couple ? "" : " hidden"}>자녀·부모를 넣으면 누가 공제받는 게 유리한지 비교해요.</span></div>
 <div data-dep-rows>${depRows}</div>
@@ -94,7 +125,7 @@ ${personFields("a_", i.a, errors, y, i.tab)}
 </div>
 <div data-when="tab=couple"${couple ? "" : " hidden"}>
 <div class="grp-title"><b>배우자</b></div>
-${personFields("b_", i.b, errors, y, i.tab)}
+${personFields("b_", i.b, errors, y, i.tab, rates)}
 <div class="grp-title"><b>부부 공동 카드 지출</b></div>
 <p class="hint">생활비처럼 누구 카드로 써도 되는 지출이에요. 어느 쪽 카드로 쓰는 게 유리한지 같이 비교해요.</p>
 ${money({ name: "sc", label: "공동 신용카드 지출 (연간)", value: i.sharedCredit, errors, hangul: false })}

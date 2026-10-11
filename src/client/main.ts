@@ -91,6 +91,12 @@ function valueOf(form: HTMLFormElement, name: string): string {
   return (el as HTMLInputElement).value;
 }
 
+/** 연말정산: '내 연말정산' 탭에는 소득 유형 선택이 없으므로, 부부 탭에서 고른 프리랜서 선택을 되돌린다 */
+function resetKinds(form: HTMLFormElement, t: HTMLInputElement): void {
+  if (t.name !== "tab" || t.value !== "me") return;
+  for (const r of $$<HTMLInputElement>('input[type="radio"][name$="_kind"][value="worker"]', form)) r.checked = true;
+}
+
 function applyWhen(form: HTMLFormElement): void {
   for (const el of $$("[data-when]", form)) {
     const [name, vals] = (el.getAttribute("data-when") ?? "").split("=");
@@ -191,12 +197,16 @@ function initCalc(root: HTMLElement): void {
     } else if (t.closest("[data-stepper]") && t.type === "text") {
       t.value = digits(t.value);
     }
-    if (t.type === "radio" || t.tagName === "SELECT" || t.type === "checkbox" || t.type === "date") applyWhen(form);
+    if (t.type === "radio" || t.tagName === "SELECT" || t.type === "checkbox" || t.type === "date") {
+      resetKinds(form, t);
+      applyWhen(form);
+    }
     refreshSoon();
   });
   form.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement;
     if (t.type === "radio" || t.tagName === "SELECT" || t.type === "checkbox" || t.type === "date") {
+      resetKinds(form, t);
       applyWhen(form);
       refresh();
     }
