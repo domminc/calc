@@ -18,12 +18,28 @@ if (!url) {
 }
 
 const sql = postgres(url, { prepare: false, max: 1, connect_timeout: 15, onnotice: () => {} });
-const mask = (e) => (e instanceof Error ? e.message.replace(/\/\/[^@\s]*@/g, "//****@") : String(e));
+// 메시지가 비는 오류(AggregateError 등)도 원인을 알 수 있게 이름·코드를 함께 적는다
+const mask = (e) =>
+  e instanceof Error ? [e.name, e.code, e.message].filter(Boolean).join(" ").replace(/\/\/[^@\s]*@/g, "//****@") : String(e);
 
-try {
-  await sql`select 1`;
-} catch (e) {
-  console.warn("migrate: 경고 — DB 에 접속하지 못해 적용을 건너뜀:", mask(e));
+// Neon 은 쉬던 컴퓨트를 깨울 때 첫 연결이 실패할 수 있어 몇 번 더 시도한다
+const ATTEMPTS = 5;
+let lastErr;
+for (let i = 1; i <= ATTEMPTS; i++) {
+  try {
+    await sql`select 1`;
+    lastErr = undefined;
+    break;
+  } catch (e) {
+    lastErr = e;
+    if (i < ATTEMPTS) {
+      console.warn(`migrate: 접속 실패 (${i}/${ATTEMPTS}) — ${mask(e)} · ${i * 3}초 뒤 다시 시도`);
+      await new Promise((r) => setTimeout(r, i * 3000));
+    }
+  }
+}
+if (lastErr) {
+  console.warn("migrate: 경고 — DB 에 접속하지 못해 적용을 건너뜀:", mask(lastErr));
   await sql.end({ timeout: 1 }).catch(() => {});
   process.exit(strict ? 1 : 0);
 }
