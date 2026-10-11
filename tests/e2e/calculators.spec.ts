@@ -129,6 +129,19 @@ test.describe("프리랜서 계산기", () => {
     await expectHero(page, 1_000_000);
   });
 
+  test("E13b 고용보험 공제율 0.9% 입력 → 계약금 − 3.3% − 0.9% = 958,000원, 0.8%(법정)이면 959,000원", async ({ page }) => {
+    await page.goto(`/freelancer?asOf=${AS_OF}&amount=1000000&eiRate=0.9`);
+    await expectHero(page, 958_000);
+    await expect(page.locator("#result")).toContainText("고용보험 (0.9%)");
+    await expect(page.locator("#result")).toContainText("입력하신 공제율");
+    await fill(page, "#f-eiRate", "0.8");
+    await expectHero(page, 959_000);
+    await expect(page.locator("#result")).toContainText("법정 본인 부담");
+    await fill(page, "#f-eiRate", "0");
+    await expectHero(page, 967_000);
+    await expect(page.locator("#result")).not.toContainText("고용보험 (");
+  });
+
   test("E14 5월 종합소득세: 수입 3,600만·단순경비율 64.1% → 환급 511,020원", async ({ page }) => {
     await page.goto(`/freelancer?tab=tax&asOf=${AS_OF}&revenue=36000000`);
     await expect(page.locator("#result")).toContainText("예상 환급액");

@@ -6,7 +6,7 @@ import type { FreelancerInput } from "../core/freelancer.ts";
 import type { FieldErrors } from "../core/types.ts";
 import type { Rates } from "../core/rates.ts";
 import { pct } from "../core/money.ts";
-import { w33Labels, w33RatesOf } from "../core/freelancer.ts";
+import { legalEiWorkerRate, w33Labels, w33RatesOf } from "../core/freelancer.ts";
 import { comma, esc, hangulWon } from "./html.ts";
 
 /** 폼 문구에 쓰는 요율 (기준일의 요율 세트) — 문구에 숫자를 직접 쓰지 않고 여기서 읽는다 */
@@ -154,6 +154,7 @@ export function freelancerForm(i: FreelancerInput, errors: Errors, ctx: FormCtx)
 ${segmented({ name: "amountMode", label: "입력할 금액", value: i.amountMode, options: [{ value: "gross", label: "세전 금액 → 실수령" }, { value: "net", label: "받고 싶은 실수령 → 세전" }] })}
 ${money({ name: "amount", label: i.amountMode === "net" ? "받고 싶은 실수령 금액" : "세전 금액 (계약 금액)", value: i.amount, errors, slider: { min: 0, max: 20_000_000, step: 100_000 }, chips: [{ label: "100만", value: 1_000_000 }, { label: "300만", value: 3_000_000 }, { label: "500만", value: 5_000_000 }, { label: "1,000만", value: 10_000_000 }] })}
 ${stepper({ name: "months", label: "연 환산 개월 수", value: i.months, min: 1, max: 12, unit: "개월", errors })}
+${decimal({ name: "eiRate", label: "고용보험 공제율 (선택)", value: i.eiRate ? String(+(i.eiRate * 100).toFixed(2)) : "0", suffix: "%", hint: `기본은 공제 안 함(0)이에요. 예술인·노무제공자(특수형태근로종사자) 고용보험이 적용되면 법정 본인 부담 ${pct(legalEiWorkerRate(rt))}(고용보험료율 ${pct(rt.freelancer.employmentInsurance.rate)}의 절반)를 넣으세요. 받는 곳이 다른 율을 떼면 그 정산서의 값을 넣으세요.`, errors })}
 </div>
 <div data-when="tab=tax|net"${t === "w33" ? " hidden" : ""}>
 ${money({ name: "revenue", label: `연 수입금액 (${w3.total} 떼기 전)`, value: i.revenue, errors, slider: { min: 0, max: 200_000_000, step: 1_000_000 }, chips: [{ label: "2,400만", value: 24_000_000 }, { label: "3,600만", value: 36_000_000 }, { label: "5,000만", value: 50_000_000 }, { label: "7,000만", value: 70_000_000 }, { label: "1억", value: 100_000_000 }] })}

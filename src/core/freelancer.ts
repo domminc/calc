@@ -13,24 +13,33 @@ export interface W33Rates {
   income: number;
   /** 지방소득세율: 소득세의 비율 (0.1) */
   local: number;
+  /** 세전 금액에서 함께 떼는 고용보험(본인 부담) 비율. 0 이면 공제하지 않는다 (사용자 입력) */
+  ei: number;
 }
 
 /** 시험용 기본값 — 운영 코드는 항상 요율 세트에서 읽는다 (w33RatesOf) */
-export const W33_2026: W33Rates = { income: 0.03, local: 0.1 };
+export const W33_2026: W33Rates = { income: 0.03, local: 0.1, ei: 0 };
 
-export function w33RatesOf(rates: Rates): W33Rates {
-  return { income: rates.freelancer.withholdingIncome, local: rates.freelancer.withholdingLocal };
+export function w33RatesOf(rates: Rates, ei = 0): W33Rates {
+  return { income: rates.freelancer.withholdingIncome, local: rates.freelancer.withholdingLocal, ei };
 }
 
-/** 표시용: 합계 세율 "3.3%", 소득세율 "3%", 지방소득세율 "0.3%" */
-export function w33Labels(r: W33Rates): { total: string; income: string; local: string } {
-  return { total: pct(r.income * (1 + r.local)), income: pct(r.income), local: pct(r.income * r.local) };
+/** 예술인·노무제공자 고용보험의 법정 본인 부담 비율 (고용보험료율 × 1/2, 시행령 제56조의5·6) */
+export function legalEiWorkerRate(rates: Rates): number {
+  return rates.freelancer.employmentInsurance.rate * rates.freelancer.employmentInsurance.workerShare;
+}
+
+/** 표시용: 합계 세율 "3.3%", 소득세율 "3%", 지방소득세율 "0.3%", 고용보험 공제율 */
+export function w33Labels(r: W33Rates): { total: string; income: string; local: string; ei: string } {
+  return { total: pct(r.income * (1 + r.local)), income: pct(r.income), local: pct(r.income * r.local), ei: pct(r.ei) };
 }
 
 export interface Withholding33 {
   gross: number;
   tax: number;
   local: number;
+  /** 함께 뗀 고용보험(본인 부담). 공제하지 않으면 0 */
+  ei: number;
   net: number;
   /** 소액부징수(소득세 1,000원 미만) */
   exempt: boolean;
@@ -45,7 +54,8 @@ export function withholding33(gross: number, r: W33Rates = W33_2026): Withholdin
     exempt = g > 0;
   }
   const local = mulPpm(tax, ppm(r.local));
-  return { gross: g, tax, local, net: g - tax - local, exempt };
+  const ei = r.ei > 0 ? mulPpm(g, ppm(r.ei)) : 0;
+  return { gross: g, tax, local, ei, net: g - tax - local - ei, exempt };
 }
 
 /**
@@ -55,7 +65,7 @@ export function withholding33(gross: number, r: W33Rates = W33_2026): Withholdin
  */
 export function grossFromNet33(net: number, r: W33Rates = W33_2026): number {
   const n = Math.max(0, Math.floor(net));
-  const keep = 1 - r.income * (1 + r.local);
+  const keep = 1 - r.income * (1 + r.local) - r.ei;
   const g0 = Math.round(n / keep);
   let best: number | undefined;
   for (let d = 0; d <= 6; d++) {
@@ -232,6 +242,8 @@ export interface FreelancerInput {
   amountMode: "gross" | "net";
   amount: number;
   months: number;
+  /** % 가 아닌 비율. 세전 금액에서 함께 떼는 고용보험(본인 부담). 0 = 공제 안 함 */
+  eiRate: number;
   // 탭 B·C
   revenue: number;
   expenseMode: ExpenseMode;
@@ -257,6 +269,12 @@ export function parseFreelancerInput(raw: Raw): Parsed<FreelancerInput> {
   const amountMode = raw.amountMode === "net" ? "net" : "gross";
   const amount = intField(raw, { field: "amount", label: "금액", required: true, def: 3_000_000, min: 0, max: 100_000_000_000, errors });
   const months = intField(raw, { field: "months", label: "개월 수", def: 12, min: 1, max: 12, errors });
+  const eiPctRaw = toNumber(raw.eiRate);
+  let eiRate = 0;
+  if (eiPctRaw !== undefined) {
+    if (Number.isNaN(eiPctRaw) || eiPctRaw < 0 || eiPctRaw > 10) errors.eiRate = "고용보험 공제율은 0~10% 사이로 입력해 주세요.";
+    else eiRate = eiPctRaw / 100;
+  }
   const revenue = intField(raw, { field: "revenue", label: "연 수입금액", required: true, def: 36_000_000, min: 0, max: 100_000_000_000, errors });
   const expenseMode: ExpenseMode = raw.expenseMode === "actual" ? "actual" : "rate";
   const ratePctRaw = toNumber(raw.expenseRate);
@@ -281,7 +299,7 @@ export function parseFreelancerInput(raw: Raw): Parsed<FreelancerInput> {
   const propertyScore = intField(raw, { field: "propertyScore", label: "재산 부과점수", def: 0, min: 0, max: 100_000_000, errors, integer: false });
   const cashExpense = intField(raw, { field: "cashExpense", label: "실제 지출 경비", def: 0, min: 0, max: 100_000_000_000, errors });
   return parsed(
-    { tab, amountMode, amount, months, revenue, expenseMode, expenseRate, actualExpense, persons, children, pensionPaid, otherDeduction, prepaidOverride, propertyScore, cashExpense, useRegionalNps: toBool(raw.regionalNps, true), asOf: asOfDate },
+    { tab, amountMode, amount, months, eiRate, revenue, expenseMode, expenseRate, actualExpense, persons, children, pensionPaid, otherDeduction, prepaidOverride, propertyScore, cashExpense, useRegionalNps: toBool(raw.regionalNps, true), asOf: asOfDate },
     errors,
     adjusted,
   );
@@ -300,12 +318,23 @@ export interface W33Result {
 }
 
 export function calcW33(input: FreelancerInput, rates: Rates): W33Result {
-  const r = w33RatesOf(rates);
+  const r = w33RatesOf(rates, input.eiRate);
   const fromNet = input.amountMode === "net";
   const gross = fromNet ? grossFromNet33(input.amount, r) : input.amount;
   const w = withholding33(gross, r);
   const notices: Notice[] = [];
   if (w.exempt) notices.push({ level: "info", code: "exempt", text: "소득세가 1,000원 미만이라 원천징수하지 않아요(소액부징수)." });
+  if (r.ei > 0) {
+    const legal = legalEiWorkerRate(rates);
+    notices.push({
+      level: "info",
+      code: "ei-special",
+      text:
+        Math.abs(r.ei - legal) < 1e-9
+          ? `고용보험 ${pct(r.ei)}는 예술인·노무제공자의 법정 본인 부담(고용보험료율 ${pct(rates.freelancer.employmentInsurance.rate)}의 절반)이에요. 고용보험이 적용되는 직종·월 보수 조건에 해당할 때만 떼요.`
+          : `고용보험 ${pct(r.ei)}는 입력하신 공제율이에요. 예술인·노무제공자의 법정 본인 부담은 ${pct(legal)}(일반 근로자는 ${pct(rates.ei.workerRate)})이니 받는 곳의 정산서와 비교해 보세요.`,
+    });
+  }
   return { w, rates: r, fromNet, months: input.months, annualGross: w.gross * input.months, annualNet: w.net * input.months, notices };
 }
 

@@ -37,6 +37,10 @@
     "S8": {
       "title": "건강보험 부과점수당 금액 211.5원 (2026·2027 동일, 건정심 2026.9.8)",
       "url": "https://asiatop.co.kr/insurance-labor/health-insurance-rate-2027-frozen/"
+    },
+    "S9": {
+      "title": "고용보험 및 산업재해보상보험의 보험료징수 등에 관한 법률 시행령 제56조의5(예술인)·제56조의6(노무제공자) — 고용보험료율 1천분의 16, 노무제공자는 월 보수액 × 료율의 1/2 (시행 2025.12.23)",
+      "url": "https://www.law.go.kr/법령/고용보험및산업재해보상보험의보험료징수등에관한법률시행령"
     }
   },
   "nps": {
@@ -242,6 +246,19 @@
     "roundingUnit": 1,
     "defaultSimpleExpenseRate": 0.641,
     "defaultSimpleExpenseNote": "업종코드 940909(기타 자영업) 단순경비율 예시. 업종별로 다르므로 홈택스 조회값으로 바꿔야 한다.",
+    "employmentInsurance": {
+      "rate": 0.016,
+      "workerShare": 0.5,
+      "note": "예술인·노무제공자(특고) 고용보험. 모든 프리랜서에게 적용되는 것은 아니며, 적용 직종·월 보수 80만원 이상 등 조건이 있다. 일반 근로자 본인 부담(0.9%)과 다르다.",
+      "sources": [
+        "S9"
+      ],
+      "verified": {
+        "rate": true,
+        "rounding": false,
+        "bounds": false
+      }
+    },
     "verified": {
       "withholding": true,
       "roundingUnit": false,

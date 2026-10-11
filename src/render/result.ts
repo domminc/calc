@@ -170,9 +170,12 @@ export function renderW33(r: W33Result, year: number, asOf: string): string {
     { key: "tax", label: `소득세 (${lb.income})`, amount: w.tax, basis: `세전 금액 × ${lb.income} (원 미만 절사)` },
     { key: "local", label: `지방소득세 (${lb.local})`, amount: w.local, basis: `소득세 × ${pct(r.rates.local)}` },
   ];
-  return `<div class="result-inner">${panel(badges(year, asOf), hero(r.fromNet ? "필요한 세전 금액" : "실수령액", r.fromNet ? w.gross : w.net, r.fromNet ? `세전 <b>${wonText(w.gross)}</b> → 실수령 <b>${wonText(w.net)}</b>` : `세전 ${wonText(w.gross)} − 원천징수 ${wonText(w.tax + w.local)} (${lb.total})`), donut(w.gross, w.net, lines))}
-${splitBar(w.gross, w.net, lines, `세전 ${wonText(w.gross)} 중 실수령 ${wonText(w.net)}, 원천징수 ${wonText(w.tax + w.local)}`)}
-${breakdown(lines, "원천징수 합계", w.tax + w.local)}
+  if (r.rates.ei > 0) lines.push({ key: "ei", label: `고용보험 (${lb.ei})`, amount: w.ei, basis: `세전 금액 × ${lb.ei} (원 미만 절사)` });
+  const cut = w.tax + w.local + w.ei;
+  const cutLabel = r.rates.ei > 0 ? "원천징수·고용보험" : "원천징수";
+  return `<div class="result-inner">${panel(badges(year, asOf), hero(r.fromNet ? "필요한 세전 금액" : "실수령액", r.fromNet ? w.gross : w.net, r.fromNet ? `세전 <b>${wonText(w.gross)}</b> → 실수령 <b>${wonText(w.net)}</b>` : `세전 ${wonText(w.gross)} − ${cutLabel} ${wonText(cut)} (${r.rates.ei > 0 ? `${lb.total} + ${lb.ei}` : lb.total})`), donut(w.gross, w.net, lines))}
+${splitBar(w.gross, w.net, lines, `세전 ${wonText(w.gross)} 중 실수령 ${wonText(w.net)}, ${cutLabel} ${wonText(cut)}`)}
+${breakdown(lines, `${cutLabel} 합계`, cut)}
 ${r.months > 1 ? `<dl class="kv"><div><dt>${r.months}개월 세전</dt><dd>${wonText(r.annualGross)}</dd></div><div><dt>${r.months}개월 실수령</dt><dd>${wonText(r.annualNet)}</dd></div></dl>` : ""}
 ${noticeList(r.notices)}
 <p class="muted">${lb.total}는 미리 내는 세금이에요. 다음 해 5월 종합소득세 신고에서 실제 세액과 비교해 돌려받거나 더 내요. <a href="/freelancer?tab=tax">5월 정산 계산하기</a></p>
