@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import postgres from "postgres";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -34,7 +35,7 @@ for (let i = 1; i <= ATTEMPTS; i++) {
     lastErr = e;
     if (i < ATTEMPTS) {
       console.warn(`migrate: 접속 실패 (${i}/${ATTEMPTS}) — ${mask(e)} · ${i * 3}초 뒤 다시 시도`);
-      await new Promise((r) => setTimeout(r, i * 3000));
+      await sleep(i * 3000);
     }
   }
 }
