@@ -2,7 +2,7 @@
 import { SUPPORTED_YEARS, resolveRates, todayKst } from "./rates.ts";
 import type { FieldErrors, Parsed } from "./types.ts";
 import { dateField, intField, parsed, toBool, toNumber, type Raw } from "./inputs.ts";
-import type { Dep, PersonInput, Relation } from "./yearend.ts";
+import type { Dep, PersonInput, PersonKind, Relation } from "./yearend.ts";
 
 export type YearendTab = "me" | "couple";
 
@@ -34,7 +34,7 @@ export function defaultTaxYear(asOf: string): number {
   return Math.min(Math.max(guess, min), max);
 }
 
-function personFrom(raw: Raw, p: "a_" | "b_", def: { gross: number; nonTaxable: number }, errors: FieldErrors, adjusted: string[]): PersonInput {
+function personFrom(raw: Raw, p: "a_" | "b_", def: { gross: number; nonTaxable: number; expenseRate: number }, allowKind: boolean, errors: FieldErrors, adjusted: string[]): PersonInput {
   const m = (field: string, label: string, d = 0): number => intField(raw, { field: p + field, label, def: d, min: 0, max: MONEY_MAX, errors });
   const opt = (field: string, label: string): number | undefined => {
     const n = toNumber(raw[p + field]);
@@ -57,14 +57,27 @@ function personFrom(raw: Raw, p: "a_" | "b_", def: { gross: number; nonTaxable: 
     wFamily = Math.min(wChildren + 1, 20);
     wChildren = Math.min(wChildren, 10);
   }
-  const bc = Number(raw[`${p}birth`]);
+  const kind: PersonKind = allowKind && raw[`${p}kind`] === "freelancer" ? "freelancer" : "worker";
+  const fl = kind === "freelancer";
+  // 프리랜서(사업소득) 전용 입력
+  const revenue = fl ? intField(raw, { field: `${p}rev`, label: "연 수입금액", required: true, def: 36_000_000, min: 0, max: MONEY_MAX, errors }) : 0;
+  const expenseMode = raw[`${p}xm`] === "actual" ? "actual" : "rate";
+  let expenseRate = def.expenseRate;
+  const xr = fl ? toNumber(raw[`${p}xr`]) : undefined;
+  if (xr !== undefined) {
+    if (Number.isNaN(xr) || xr < 0 || xr > 100) errors[`${p}xr`] = "경비율은 0~100% 사이로 입력해 주세요.";
+    else expenseRate = xr / 100;
+  }
+  const actualExpense = fl ? intField(raw, { field: `${p}xa`, label: "실제 경비", def: 0, min: 0, max: MONEY_MAX, errors }) : 0;
+  const bc = Number(raw[`${p}${fl ? "fbirth" : "birth"}`]);
   const birthChild = (bc === 1 || bc === 2 || bc === 3 ? bc : 0) as 0 | 1 | 2 | 3;
   return {
+    kind, revenue, expenseMode, expenseRate, actualExpense,
     gross,
     nonTaxable,
-    npsOverride: opt("nps", "국민연금"),
+    npsOverride: fl ? opt("fnps", "국민연금") : opt("nps", "국민연금"),
     healthOverride: opt("hi", "건강·고용·장기요양보험료"),
-    prepaidOverride: opt("tax", "이미 낸 소득세"),
+    prepaidOverride: fl ? opt("ftax", "이미 낸 소득세") : opt("tax", "이미 낸 소득세"),
     wFamily,
     wChildren,
     credit: m("cc", "신용카드 사용액"),
@@ -80,8 +93,8 @@ function personFrom(raw: Raw, p: "a_" | "b_", def: { gross: number; nonTaxable: 
     donGeneral: m("dg", "일반기부금"),
     donReligious: m("dr", "종교단체 기부금"),
     hometown: m("hs", "고향사랑 기부금"),
-    pensionSavings: m("ps", "연금저축 납입액"),
-    irp: m("irp", "IRP·퇴직연금 납입액"),
+    pensionSavings: fl ? m("fps", "연금저축 납입액") : m("ps", "연금저축 납입액"),
+    irp: fl ? m("firp", "IRP·퇴직연금 납입액") : m("irp", "IRP·퇴직연금 납입액"),
     housingSavings: m("hsv", "주택청약저축 납입액"),
     rent: m("rent", "월세 지급액"),
     noHome: toBool(raw[`${p}nh`]),
@@ -105,8 +118,10 @@ export function parseYearendInput(raw: Raw): Parsed<YearendInput> {
 
   // 기본 비과세 = 식대 월 한도 × 12 (data/rates 의 값)
   const meal = resolveRates(`${year}-12-31`).set.rates.taxFree.mealMonthly * 12;
-  const a = personFrom(raw, "a_", { gross: 50_000_000, nonTaxable: meal }, errors, adjusted);
-  const b = personFrom(raw, "b_", { gross: 40_000_000, nonTaxable: meal }, errors, adjusted);
+  const expenseRate = resolveRates(`${year}-12-31`).set.rates.freelancer.defaultSimpleExpenseRate;
+  const couple = tab === "couple";
+  const a = personFrom(raw, "a_", { gross: 50_000_000, nonTaxable: meal, expenseRate }, couple, errors, adjusted);
+  const b = personFrom(raw, "b_", { gross: 40_000_000, nonTaxable: meal, expenseRate }, couple, errors, adjusted);
 
   const deps: Dep[] = [];
   let spouses = 0;

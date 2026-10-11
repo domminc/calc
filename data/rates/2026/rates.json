@@ -285,7 +285,7 @@
       "extraCap": { "low": 3000000, "high": 2000000 }
     },
     "housingSavings": { "rate": 0.4, "payCap": 3000000, "salaryLimit": 70000000 },
-    "pension": { "rate": 0.12, "rateLow": 0.15, "lowSalary": 55000000, "savingsCap": 6000000, "totalCap": 9000000 },
+    "pension": { "rate": 0.12, "rateLow": 0.15, "lowSalary": 55000000, "lowIncome": 45000000, "savingsCap": 6000000, "totalCap": 9000000 },
     "insurance": { "rate": 0.12, "cap": 1000000 },
     "medical": { "rate": 0.15, "thresholdRatio": 0.03, "generalCap": 7000000, "youngMaxAge": 6, "seniorMinAge": 65 },
     "education": { "rate": 0.15, "childCap": 3000000, "universityCap": 9000000, "universityMinAge": 19 },

@@ -29,7 +29,7 @@ export interface ComputeOutput {
 
 const PLAIN = ["asOf", "size", "wciRate", "family", "children"];
 /** 연말정산: 사람별 입력(a_·b_ 접두사)과 부양가족 행(d0_~) */
-const YE_PERSON = ["gross", "nt", "nps", "hi", "tax", "wf", "wc", "cc", "dc", "mk", "tr", "cu", "med", "medsp", "edu", "prem", "dl", "dg", "dr", "hs", "ps", "irp", "hsv", "rent", "nh", "birth"];
+const YE_PERSON = ["gross", "nt", "nps", "hi", "tax", "wf", "wc", "cc", "dc", "mk", "tr", "cu", "med", "medsp", "edu", "prem", "dl", "dg", "dr", "hs", "ps", "irp", "hsv", "rent", "nh", "birth", "kind", "rev", "xm", "xr", "xa", "fnps", "ftax", "fps", "firp", "fbirth"];
 const YE_DEP = ["rel", "year", "hi", "med", "edu", "prem", "cc", "dc"];
 const ALLOWED: Record<CalcKey, string[]> = {
   salary: ["mode", "annual", "targetNet", "severance", "nonTaxable", ...PLAIN],

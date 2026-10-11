@@ -213,4 +213,40 @@ test.describe("연말정산 계산기", () => {
     await fill(page, "#f-d0_year", "1800");
     await expect(page.locator("#result")).toContainText("입력값을 확인해 주세요");
   });
+
+  test("E102 한 명이 프리랜서인 부부: 프리랜서는 5월 종소세로 계산된다 (나 환급 577,020원)", async ({ page }) => {
+    await page.goto(`/yearend?asOf=${AS_OF}&tab=couple&a_kind=freelancer&a_rev=36000000&a_fnps=1000000&b_gross=60000000&b_nt=0&b_nps=2000000&b_hi=1500000&b_tax=4000000&d0_rel=child&d0_year=2016&d0_edu=3000000&sc=30000000`);
+    const r = page.locator("#result");
+    await expect(r).toContainText("5월 종소세 포함");
+    await expect(r).toContainText("프리랜서가 있을 때 달라지는 점");
+    await expect(r).toContainText("나 −577,020원");
+    await expect(r).toContainText("나의(프리랜서) 계산 과정");
+    await expect(r.locator(".move-list")).toContainText("배우자가 공제받기"); // 교육비 있는 자녀는 근로자가
+    await expect(r).toContainText("배우자의 카드로 모두 쓰는 게 유리해요"); // 공동 카드도 근로자 쪽
+  });
+
+  test("E103 소득 유형 전환: 프리랜서를 고르면 수입 입력이 나오고, 내 연말정산 탭으로 돌아가면 근로자로 되돌아온다", async ({ page }) => {
+    await page.goto(`/yearend?asOf=${AS_OF}&tab=couple`);
+    await expect(page.locator("#f-a_rev")).toBeHidden();
+    await page.getByRole("radio", { name: "프리랜서 (5월 종소세)" }).first().check();
+    await expect(page.locator("#f-a_rev")).toBeVisible();
+    await expect(page.locator("#f-a_gross")).toBeHidden();
+    await expect(page.locator("#result")).toContainText("5월 종소세 포함");
+    await choose(page, "내 연말정산 예측");
+    await expect(page.locator("#f-a_gross")).toBeVisible();
+    await expect(page.locator("#f-a_rev")).toBeHidden();
+    await expect(page.locator("#result")).not.toContainText("5월 종소세 포함");
+  });
+
+  test("E104 프리랜서 경비율·실제 경비 전환과 오류 표시", async ({ page }) => {
+    await page.goto(`/yearend?asOf=${AS_OF}&tab=couple&b_kind=freelancer&b_rev=36000000`);
+    await expect(page.locator("#f-b_xr")).toBeVisible();
+    await expect(page.locator("#f-b_xa")).toBeHidden();
+    await page.getByRole("radio", { name: "실제 경비" }).check();
+    await expect(page.locator("#f-b_xa")).toBeVisible();
+    await expect(page.locator("#f-b_xr")).toBeHidden();
+    await page.getByRole("radio", { name: "단순경비율" }).check();
+    await fill(page, "#f-b_xr", "120");
+    await expect(page.locator("#result")).toContainText("입력값을 확인해 주세요");
+  });
 });

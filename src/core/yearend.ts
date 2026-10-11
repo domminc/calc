@@ -4,7 +4,7 @@ import type { Rates, Resolved, Withholding } from "./rates.ts";
 import { resolveRates } from "./rates.ts";
 import { calcInsurance } from "./insurance.ts";
 import { withholdingTax } from "./withholding.ts";
-import { bracketTax } from "./freelancer.ts";
+import { bracketTax, calcRegional, w33RatesOf } from "./freelancer.ts";
 import { floor10, mulPpm, ppm } from "./money.ts";
 import type { Notice } from "./types.ts";
 
@@ -36,7 +36,16 @@ export interface Dep {
   debit: number;
 }
 
+/** 근로소득자(정규직, 연말정산) / 프리랜서(사업소득, 5월 종합소득세 신고) */
+export type PersonKind = "worker" | "freelancer";
+
 export interface PersonInput {
+  kind: PersonKind;
+  /** 프리랜서: 연 수입금액(원천징수 떼기 전 총액), 필요경비 방식·단순경비율·실제 경비 */
+  revenue: number;
+  expenseMode: "rate" | "actual";
+  expenseRate: number;
+  actualExpense: number;
   /** 연 총지급액(비과세 포함) */
   gross: number;
   /** 연 비과세 합계 (식대 등) */
@@ -77,6 +86,7 @@ export interface PersonInput {
 }
 
 export const emptyPerson = (): PersonInput => ({
+  kind: "worker", revenue: 0, expenseMode: "rate", expenseRate: 0, actualExpense: 0,
   gross: 0, nonTaxable: 0, npsOverride: undefined, healthOverride: undefined, prepaidOverride: undefined,
   wFamily: 1, wChildren: 0,
   credit: 0, debit: 0, market: 0, transit: 0, culture: 0,
@@ -184,8 +194,12 @@ export function cardDeduction(y: YearendRates, salary: number, u: CardUsage, chi
 // ---------------------------------------------------------------- 사람 단위 고정값 (가족 배분과 무관)
 
 export interface PersonBase {
+  kind: PersonKind;
+  /** 근로자: 총급여 / 프리랜서: 수입금액 */
   salary: number;
+  /** 근로자: 근로소득공제 / 프리랜서: 필요경비 */
   earnedDeduction: number;
+  /** 근로소득금액 / 사업소득금액 */
   earnedIncome: number;
   nps: number;
   health: number;
@@ -208,7 +222,29 @@ export function annualInsurance(ctx: YearCtx, taxableAnnual: number): { nps: num
   return { nps: 6 * (a.nps + b.nps), health: 6 * (a.health + b.health) };
 }
 
+/** 지역가입자 국민연금 연간 추정 (사업소득금액 기준, 상·하반기 상·하한 반영) */
+function regionalNps(ctx: YearCtx, income: number): number {
+  const half = (res: Resolved) => calcRegional(res.set.rates, { annualIncome: income, propertyScore: 0, asOf: res.asOf }).nps;
+  return 6 * (half(ctx.h1) + half(ctx.h2));
+}
+
+/** 프리랜서(사업소득) 기본값: 수입 − 필요경비, 국민연금(지역) 추정, 3% 원천징수액 */
+function prepareFreelancer(ctx: YearCtx, p: PersonInput): PersonBase {
+  const revenue = pos(p.revenue);
+  const expense = p.expenseMode === "rate" ? pm(revenue, p.expenseRate) : Math.min(pos(p.actualExpense), revenue);
+  const income = revenue - expense;
+  const w33 = w33RatesOf(ctx.rates);
+  const prepaidTax = p.prepaidOverride ?? pm(revenue, w33.income);
+  return {
+    kind: "freelancer", salary: revenue, earnedDeduction: expense, earnedIncome: income,
+    nps: p.npsOverride ?? regionalNps(ctx, income), health: 0,
+    npsEstimated: p.npsOverride === undefined, healthEstimated: false,
+    prepaidTax, prepaidLocal: pm(prepaidTax, w33.local), prepaidEstimated: p.prepaidOverride === undefined,
+  };
+}
+
 export function prepare(ctx: YearCtx, p: PersonInput): PersonBase {
+  if (p.kind === "freelancer") return prepareFreelancer(ctx, p);
   const salary = pos(p.gross - p.nonTaxable);
   const earnedDeduction = earnedIncomeDeduction(ctx.rates, salary);
   const est = annualInsurance(ctx, salary);
@@ -225,7 +261,7 @@ export function prepare(ctx: YearCtx, p: PersonInput): PersonBase {
     prepaidLocal = wh.localTax * 12;
   }
   return {
-    salary, earnedDeduction, earnedIncome: salary - earnedDeduction, nps, health,
+    kind: "worker", salary, earnedDeduction, earnedIncome: salary - earnedDeduction, nps, health,
     npsEstimated: p.npsOverride === undefined, healthEstimated: p.healthOverride === undefined,
     prepaidTax, prepaidLocal, prepaidEstimated: p.prepaidOverride === undefined,
   };
@@ -268,6 +304,7 @@ export interface Credits {
 }
 
 export interface PersonResult {
+  kind: PersonKind;
   base: PersonBase;
   salary: number;
   earnedDeduction: number;
@@ -302,6 +339,79 @@ export interface PersonResult {
   notices: Notice[];
 }
 
+
+// ---------------------------------------------------------------- 근로자·프리랜서 공통 세액공제
+
+/** 자녀세액공제(8세 이상, 제59조의2)와 출산·입양 */
+function familyCredits(ctx: YearCtx, p: PersonInput, eligible: readonly Dep[]): { child: number; birth: number } {
+  const y = ctx.rates.yearend;
+  const kids = eligible.filter((d) => d.rel === "child" && ctx.year - d.year >= y.child.creditMinAge).length;
+  const cc = ctx.rates.incomeTax.childCredit;
+  const child = kids === 0 ? 0 : kids === 1 ? cc.one : kids === 2 ? cc.two : cc.two + cc.perExtra * (kids - 2);
+  const birth = p.birthChild === 1 ? y.child.birth.first : p.birthChild === 2 ? y.child.birth.second : p.birthChild === 3 ? y.child.birth.third : 0;
+  return { child, birth };
+}
+
+/** 연금계좌세액공제(제59조의3). low = 우대율(15%) 대상 소득 구간인가 */
+function pensionCredit(y: YearendRates, p: PersonInput, low: boolean): number {
+  const pn = y.pension;
+  const base = Math.min(Math.min(p.pensionSavings, pn.savingsCap) + p.irp, pn.totalCap);
+  return pm(base, low ? pn.rateLow : pn.rate);
+}
+
+const zeroCard = (y: YearendRates): CardResult => cardDeduction(y, 0, { credit: 0, debit: 0, market: 0, transit: 0, culture: 0 }, 0);
+
+/**
+ * 프리랜서(사업소득만 있는 사람)의 5월 종합소득세 계산 — 소득세법 제51조·제51조의3·제55조·제59조의2·제59조의3·제59조의4 제9항.
+ * 근로소득이 없으므로 근로소득공제·근로소득세액공제·신용카드 등 공제와 보험료·의료비·교육비 특별세액공제는 받지 못한다(제52조·제59조의4 제1~3항,
+ * 조세특례제한법 제126조의2 는 "근로소득이 있는 거주자"만). 사업소득만 있으면 기부금 세액공제도 제외(제59조의4 제4항)라 입력받지 않는다.
+ * 대신 표준세액공제 7만원(제59조의4 제9항 제2호).
+ */
+function evaluateFreelancer(ctx: YearCtx, base: PersonBase, p: PersonInput, deps: readonly Dep[]): PersonResult {
+  const R = ctx.rates;
+  const y = R.yearend;
+  const Y = ctx.year;
+  const L = base.earnedIncome;
+  const notices: Notice[] = [];
+
+  const eligible = deps.filter((d) => baseEligible(y, Y, d));
+  const headcount = 1 + eligible.length;
+  const basic = headcount * R.incomeTax.basicDeductionPerPerson;
+  const seniors = eligible.filter((d) => d.rel !== "spouse" && Y - d.year >= y.person.seniorAge).length;
+  const senior = seniors * y.person.seniorExtra;
+  const deductionTotal = basic + senior + base.nps;
+  const taxBase = pos(L - deductionTotal);
+  const br = bracketTax(R, taxBase);
+  const computedTax = br.tax;
+
+  const { child, birth } = familyCredits(ctx, p, eligible);
+  const pension = pensionCredit(y, p, L <= y.pension.lowIncome);
+  const standard = R.incomeTax.standardCredit.noEarnedIncome;
+  const rawTotal = child + birth + pension + standard;
+  const total = Math.min(rawTotal, computedTax);
+  const capped = rawTotal > computedTax;
+  const credits: Credits = {
+    earned: 0, child, birth, pension, insurance: 0, medical: 0, education: 0, donation: 0, rent: 0, standard, hometown: 0,
+    usedSpecial: false, specialSum: 0, rawTotal, total, capped,
+  };
+  const determinedTax = computedTax - total;
+  const localTax = floor10(pm(determinedTax, R.incomeTax.localTaxRatio));
+
+  const lost = p.medicalSpouse + deps.reduce((s, d) => s + d.medical + d.education + d.premium + d.credit + d.debit, 0);
+  if (lost > 0) notices.push({ level: "info", code: "fl-lost", text: "프리랜서(사업소득)는 의료비·교육비·보험료·카드 공제를 받을 수 없어서, 이 쪽에 배정된 가족 지출은 공제에 반영하지 않았어요." });
+  if (capped) notices.push({ level: "info", code: "credit-cap", text: "세액공제가 산출세액보다 커서 결정세액이 0원이에요." });
+
+  return {
+    kind: "freelancer", base, salary: base.salary, earnedDeduction: base.earnedDeduction, earnedIncome: L, headcount, basic, senior,
+    nps: base.nps, health: 0, housing: 0, card: zeroCard(y), limited: 0, limitedCapped: false, deductionTotal,
+    taxBase, computedTax, marginalRate: br.rate, credits, determinedTax, localTax,
+    prepaidTax: base.prepaidTax, prepaidLocal: base.prepaidLocal,
+    settleTax: determinedTax - base.prepaidTax, settleLocal: localTax - base.prepaidLocal,
+    settleTotal: determinedTax - base.prepaidTax + localTax - base.prepaidLocal,
+    medicalBase: 0, medicalThreshold: 0, medicalSum: 0, notices,
+  };
+}
+
 export interface Extra {
   credit: number;
   debit: number;
@@ -313,6 +423,7 @@ export interface Extra {
  * @param extra 부부가 나눠 쓰는 공동 카드 지출 중 이 사람 몫
  */
 export function evaluate(ctx: YearCtx, base: PersonBase, p: PersonInput, deps: readonly Dep[], extra: Extra = { credit: 0, debit: 0 }): PersonResult {
+  if (base.kind === "freelancer") return evaluateFreelancer(ctx, base, p, deps);
   const R = ctx.rates;
   const y = R.yearend;
   const Y = ctx.year;
@@ -353,14 +464,8 @@ export function evaluate(ctx: YearCtx, base: PersonBase, p: PersonInput, deps: r
   // --- 세액공제
   const earned = earnedIncomeCredit(y, computedTax, S);
 
-  const kids = eligible.filter((d) => d.rel === "child" && Y - d.year >= y.child.creditMinAge).length;
-  const cc = R.incomeTax.childCredit;
-  const child = kids === 0 ? 0 : kids === 1 ? cc.one : kids === 2 ? cc.two : cc.two + cc.perExtra * (kids - 2);
-  const birth = p.birthChild === 1 ? y.child.birth.first : p.birthChild === 2 ? y.child.birth.second : p.birthChild === 3 ? y.child.birth.third : 0;
-
-  const pn = y.pension;
-  const pensionBase = Math.min(Math.min(p.pensionSavings, pn.savingsCap) + p.irp, pn.totalCap);
-  const pension = pm(pensionBase, S <= pn.lowSalary ? pn.rateLow : pn.rate);
+  const { child, birth } = familyCredits(ctx, p, eligible);
+  const pension = pensionCredit(y, p, S <= y.pension.lowSalary);
 
   // 보장성 보험료: 본인 + 기본공제 대상 가족
   const premiumBase = Math.min(p.premium + eligible.reduce((s, d) => s + d.premium, 0), y.insurance.cap);
@@ -435,7 +540,7 @@ export function evaluate(ctx: YearCtx, base: PersonBase, p: PersonInput, deps: r
   if (p.rent > 0 && !rentOk) notices.push({ level: "info", code: "rent-no", text: `월세 세액공제는 무주택 세대주이고 총급여 ${rn.salaryLimit.toLocaleString("ko-KR")}원 이하(종합소득금액 ${rn.incomeLimit.toLocaleString("ko-KR")}원 이하)여야 해요. 요건을 확인해 주세요.` });
 
   return {
-    base, salary: S, earnedDeduction: base.earnedDeduction, earnedIncome: L, headcount, basic, senior,
+    kind: "worker", base, salary: S, earnedDeduction: base.earnedDeduction, earnedIncome: L, headcount, basic, senior,
     nps: base.nps, health: base.health, housing, card, limited, limitedCapped: limitedRaw > y.comprehensiveCap, deductionTotal,
     taxBase, computedTax, marginalRate: br.rate, credits, determinedTax, localTax,
     prepaidTax: base.prepaidTax, prepaidLocal: base.prepaidLocal, settleTax, settleLocal, settleTotal: settleTax + settleLocal,
@@ -461,6 +566,7 @@ const won = (n: number): string => `${Math.round(n).toLocaleString("ko-KR")}원`
 
 /** "이렇게 하면 더 받아요" — 실제로 다시 계산해 본 값만 알려 준다 */
 export function tips(ctx: YearCtx, p: PersonInput, deps: readonly Dep[], now: PersonResult): Tip[] {
+  if (now.kind === "freelancer") return [];
   const y = ctx.rates.yearend;
   const out: Tip[] = [];
   const settle = (q: PersonInput): number => evaluate(ctx, now.base, q, deps).settleTotal;

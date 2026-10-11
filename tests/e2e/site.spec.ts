@@ -96,6 +96,25 @@ test.describe("레이아웃 깨짐 방지", () => {
     expect(bad).toEqual([]);
   });
 
+  test("E90d 연말정산 부부 탭(둘 다 프리랜서 입력 펼침): 칸 밖으로 나가는 것이 없고 코드 조각이 보이지 않는다", async ({ page }) => {
+    await page.goto(`/yearend?asOf=${AS_OF}&tab=couple&a_kind=freelancer&b_kind=freelancer&d0_rel=child&d0_year=2016`);
+    await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+    const bad = await page.evaluate(() => {
+      const out: string[] = [];
+      const vw = document.documentElement.clientWidth;
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>(".field input, .field select, .input-wrap, .segmented, .stepper, .tip-list li"))) {
+        const r = el.getBoundingClientRect();
+        if (!r.width) continue;
+        const box = el.closest<HTMLElement>(".field, .tip-list, form") ?? document.body;
+        const b = box.getBoundingClientRect();
+        if (r.right > b.right + 1 || r.left < b.left - 1 || r.right > vw + 1) out.push(`${el.tagName}.${el.className} ${Math.round(r.left)}-${Math.round(r.right)} (칸 ${Math.round(b.left)}-${Math.round(b.right)})`);
+      }
+      return out;
+    });
+    expect(bad).toEqual([]);
+    expect(await page.locator("body").innerText()).not.toMatch(/\$\{|\bundefined\b|\bNaN\b|\[object /);
+  });
+
   test("E91 계산 기준: 글이 많은 표는 좁은 화면에서 가로로 잘리지 않고, 배지는 한 줄이다", async ({ page }) => {
     await page.goto("/basis");
     const info = await page.evaluate(() => {
