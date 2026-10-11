@@ -47,6 +47,7 @@ flowchart LR
    | 국민건강보험법·시행령·고시 | `nhis.rate`, `nhis.premiumMin/Max`, `nhis.regionalScoreUnitPrice` |
    | 노인장기요양보험법·시행령 | `nhis.ltc.rate` |
    | 고용보험법·시행령 | `ei.workerRate/employerRate`, `ei.stabilization` |
+   | 고용보험 및 산업재해보상보험의 보험료징수 등에 관한 법률 시행령 | `freelancer.employmentInsurance.rate/workerShare` (예술인 제56조의5·노무제공자 제56조의6: 1천분의 16, 본인 ½). 일반 근로자 요율(`ei.*`, 제12조 실업급여 1천분의 18)과 별개 |
    | 산재보험 법령·고시 | `wci.defaultRate` |
    | 최저임금법·고시 | `labor.minHourlyWage`, `labor.monthlyPaidHours` |
    | 근로기준법·시행령 | `labor.*Premium` |
@@ -64,12 +65,21 @@ flowchart LR
 - **미확정(추적 중)**: 프리랜서 원천징수 3%→2%(2026 세제개편안, 현행 법조문은 100분의 3), 장기요양보험료율, 고용보험료율 인상, 2027 간이세액표, 건보료 상·하한
 
 ## 5. 유지보수 루틴 (자동)
-Claude 예약 루틴이 매일 `law-change`·`law-sync`·`law-manual` 이슈/PR 을 확인한다.
+Claude 예약 루틴(매일 07:12 KST, 새 세션으로 실행)이 `law-change`·`law-sync`·`law-manual` 이슈/PR 과 2027 세트의 확정 전 항목을 확인한다.
 - 이슈가 있으면 §3 의 절차대로 데이터·테스트·문서를 수정해 PR 을 만들고, CI 가 통과하면 병합한다.
+- **매년 10~11월**에는 열린 `law-manual` 이슈의 장기요양보험료율(장기요양위원회)·건강보험료율(건강보험정책심의위원회)·부과점수당 금액을 보건복지부 보도자료·공고, 공단 공지 원문에서 찾는다. 정부 기관이 직접 낸 원문이면 확정 근거로 쓰고(다음 해 세트 `overrides`), 언론 보도만 있으면 확정하지 않는다. 의결 전이면 이슈를 열어 두고, 달라진 것이 있을 때만 댓글을 남긴다.
 - 값을 원문으로 확정할 수 없으면(예: 공고 전) 반영하지 않고 이슈에 이유를 남긴다.
 - 루틴이 처리하지 못한 이슈는 열린 채로 남아 사람이 볼 수 있다.
 
+## 5.1 실제 법제처 응답에서 확인한 것 (2026-10-11)
+간이세액표 자동 갱신은 처음에 가짜 XML 로만 시험해, 실제 응답에서 "별표2를 찾지 못했어요"로 실패했다(QA-PLAN D-09). 실제 구조:
+- 시행령 본문: `lawService.do?target=law&ID=003956&type=XML` (약 3MB). 이 환경·러너에서 큰 응답은 가끔 끊기므로 재시도한다(`curl --retry-all-errors` 또는 스크립트의 재시도).
+- 별표는 `<별표단위>` 안에 있고 **제목에 `[별표 2]`·개정일이 없다.** 근로소득 간이세액표는 `<별표번호>0002` + `<별표제목>근로소득 간이세액표(제189조제1항 관련)`. 연금소득(제189조제2항)·종교인소득(제202조제4항) 간이세액표가 같은 법에 따로 있으므로 제목으로 구분한다.
+- **개정일은 `<별표내용>` 첫 줄**(`■ 소득세법 시행령 [별표 2] <개정 2026. 2. 27.>`), PDF 는 `<별표서식PDF파일링크>`(`/LSW/flDownload.do?flSeq=…`). 법제처가 PDF 를 다시 만들어 flSeq·파일 해시가 바뀌어도 내용이 같으면 표는 같다 → **개정일로만 비교**한다.
+- 검증: 이 PDF 를 `pdftotext -layout` → `build-withholding` 하면 저장된 표와 구간 646개·10,000천원 행·초과 구간 식·자녀 세액공제가 모두 같다.
+- 새 외부 응답을 파싱하는 코드를 추가하면 가짜 데이터 시험만으로 끝내지 말고, 실제 응답으로 한 번 돌려 본 뒤(수동 실행 `법령 변경 감시` → Run workflow) 병합한다.
+
 ## 6. 운영 설정
-- 저장소 Settings → Actions → General → **"Allow GitHub Actions to create and approve pull requests"** 켜기 (간이세액표 자동 PR 용; 없으면 이슈로 대체 알림)
+- 저장소 맨 위 탭 **Settings**(Actions 탭이 아님) → 왼쪽 Code and automation → Actions → General → 맨 아래 Workflow permissions → **"Allow GitHub Actions to create and approve pull requests"** 체크 후 Save (간이세액표 자동 PR 용; 없으면 이슈로 대체 알림). 설정 완료(2026-10-11).
 - (선택) Secrets `LAW_OC`: 법제처 OPEN API 인증키 발급(<https://open.law.go.kr>) — 없으면 공용 키로 동작하며, 차단되면 조회 실패 경고가 뜬다.
 - 감시 대상 추가/삭제: `data/watch/targets.json` → `npm run law:update`.
