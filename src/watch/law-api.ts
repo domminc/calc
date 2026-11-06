@@ -68,7 +68,7 @@ export function lawApiRejection(text: string): string | undefined {
   if (!/<Response>/.test(head)) return undefined;
   const result = /<result>([^<]*)<\/result>/.exec(head)?.[1]?.trim() ?? "";
   const msg = /<msg>([^<]*)<\/msg>/.exec(head)?.[1]?.trim() ?? "";
-  if (/필수입력요소 검증/.test(result)) return `인증키(LAW_OC)가 비어 있어요 — ${msg || result}`;
+  if (/필수입력요소 검증/.test(result)) return `법제처가 인증키(OC)를 인식하지 못했어요 (빈 값이거나, 저장한 값이 OC 형식이 아닐 수 있어요) — ${msg || result}`;
   if (/사용자 정보 검증/.test(result)) return `인증키가 없거나 이 서버의 IP·도메인이 법제처 OPEN API 에 등록되지 않았어요 — ${msg || result}`;
   return undefined;
 }

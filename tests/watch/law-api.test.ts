@@ -153,7 +153,7 @@ describe("법제처 인증 거절 응답", () => {
   const unregistered = `<?xml version="1.0" encoding="UTF-8"?>\n    <Response>\n        <result>사용자 정보 검증에 실패하였습니다.</result>\n        <msg>OPEN API 호출 시 사용자 검증을 위하여 정확한 서버장비의 IP주소 및 도메인주소를 등록해 주세요.</msg>\n    </Response>`;
 
   it("UT-L9 키가 비었을 때와 서버 미등록일 때를 구분해 설명한다", () => {
-    expect(lawApiRejection(blank)).toContain("비어 있어요");
+    expect(lawApiRejection(blank)).toContain("인식하지 못했어요");
     expect(lawApiRejection(unregistered)).toContain("IP·도메인이 법제처 OPEN API 에 등록되지 않았어요");
   });
 
