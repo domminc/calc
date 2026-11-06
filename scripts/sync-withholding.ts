@@ -5,18 +5,19 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { findWithholdingAnnex, guessEffectiveFrom } from "../src/watch/annex.ts";
-import { lawApiRejection } from "../src/watch/law-api.ts";
+import { lawApiRejection, lawRequestHeaders } from "../src/watch/law-api.ts";
 
 // 공백만 들어 있는 비밀값도 "없음"으로 본다
 const OC = (process.env.LAW_OC ?? "").trim() || "test";
 const ROOT = new URL("..", import.meta.url).pathname;
 const check = process.argv.includes("--check");
+const HEADERS = lawRequestHeaders(process.env.LAW_REFERER);
 
 async function get(url: string, binary = false): Promise<Buffer | string> {
   let last: unknown;
   for (let i = 0; i < 3; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(120_000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return binary ? Buffer.from(await res.arrayBuffer()) : await res.text();
     } catch (e) {

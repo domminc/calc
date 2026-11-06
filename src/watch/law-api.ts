@@ -55,6 +55,16 @@ export interface Snapshot {
 const FIELD = /<([^<>/\s!?]+)>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/\1>/g;
 
 /** `<law id="1">…</law>` 같은 항목 블록을 {태그: 값} 목록으로 */
+/**
+ * 법제처 OPEN API 요청 헤더. OPEN API 신청 때 '서버 도메인'을 등록했다면 요청이 그 도메인에서 왔다는 정보(Referer)가 필요하다.
+ * LAW_REFERER 로 바꿀 수 있고, 빈 값이면 기본 도메인을 쓴다.
+ */
+export const DEFAULT_LAW_REFERER = "https://calc.homesell.co.kr/";
+export function lawRequestHeaders(referer: string | undefined): Record<string, string> {
+  const r = (referer ?? "").trim() || DEFAULT_LAW_REFERER;
+  return { Referer: r };
+}
+
 /** 법제처가 인증키(OC)·서버 IP/도메인 등록 문제로 요청 자체를 거절했다는 뜻의 오류 (다시 시도해도 같은 결과) */
 export class LawApiAuthError extends Error {}
 
@@ -68,7 +78,7 @@ export function lawApiRejection(text: string): string | undefined {
   if (!/<Response>/.test(head)) return undefined;
   const result = /<result>([^<]*)<\/result>/.exec(head)?.[1]?.trim() ?? "";
   const msg = /<msg>([^<]*)<\/msg>/.exec(head)?.[1]?.trim() ?? "";
-  if (/필수입력요소 검증/.test(result)) return `법제처가 인증키(OC)를 인식하지 못했어요 (빈 값이거나, 저장한 값이 OC 형식이 아닐 수 있어요) — ${msg || result}`;
+  if (/필수입력요소 검증/.test(result)) return `법제처가 필수 입력값(인증키 또는 등록 도메인 확인용 Referer)을 받지 못했어요 — ${msg || result}`;
   if (/사용자 정보 검증/.test(result)) return `인증키가 없거나 이 서버의 IP·도메인이 법제처 OPEN API 에 등록되지 않았어요 — ${msg || result}`;
   return undefined;
 }

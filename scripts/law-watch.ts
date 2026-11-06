@@ -3,9 +3,10 @@
 //   node scripts/law-watch.ts update                      스냅샷을 현재 상태로 갱신 (변경을 반영·확인한 뒤)
 // 환경: LAW_OC (법제처 OPEN API 인증키, 기본 "test"). 대상: data/watch/targets.json, 스냅샷: data/watch/snapshot.json
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { LawApiAuthError, diffSnapshots, hasChanges, lawApiRejection, lawEntries, parseItems, reportMarkdown, ruleEntries, totalCount, type LawEntry, type RuleEntry, type Snapshot, type Targets } from "../src/watch/law-api.ts";
+import { LawApiAuthError, diffSnapshots, hasChanges, lawApiRejection, lawEntries, lawRequestHeaders, parseItems, reportMarkdown, ruleEntries, totalCount, type LawEntry, type RuleEntry, type Snapshot, type Targets } from "../src/watch/law-api.ts";
 
 // 공백만 들어 있는 비밀값도 "없음"으로 본다
+const HEADERS = lawRequestHeaders(process.env.LAW_REFERER);
 const RAW_OC = process.env.LAW_OC ?? "";
 const OC = RAW_OC.trim() || "test";
 /** 키 값은 절대 출력하지 않고, 어떤 값이 전달됐는지(길이·종류)만 알려 원인 진단에 쓴다 */
@@ -20,7 +21,7 @@ async function fetchXml(params: Record<string, string>): Promise<string> {
   let last: unknown;
   for (let i = 0; i < 3; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(30_000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       // 인증 거절은 다시 시도해도 같다 — 재시도하지 않고 바로 멈춘다
@@ -81,7 +82,7 @@ try {
   collected = await collect(targets);
 } catch (e) {
   if (e instanceof LawApiAuthError) {
-    console.error(`법제처 API 가 요청을 거절했어요 (재시도하지 않고 멈춰요): ${e.message}\n  전달된 키: ${OC_INFO}`);
+    console.error(`법제처 API 가 요청을 거절했어요 (재시도하지 않고 멈춰요): ${e.message}\n  전달된 키: ${OC_INFO} / Referer: ${HEADERS.Referer}`);
     process.exit(4);
   }
   throw e;
