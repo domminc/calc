@@ -3,7 +3,9 @@ import {
   LawApiAuthError,
   diffSnapshots,
   hasChanges,
+  DEFAULT_LAW_REFERER,
   lawApiRejection,
+  lawRequestHeaders,
   lawEntries,
   parseItems,
   reportMarkdown,
@@ -153,7 +155,7 @@ describe("법제처 인증 거절 응답", () => {
   const unregistered = `<?xml version="1.0" encoding="UTF-8"?>\n    <Response>\n        <result>사용자 정보 검증에 실패하였습니다.</result>\n        <msg>OPEN API 호출 시 사용자 검증을 위하여 정확한 서버장비의 IP주소 및 도메인주소를 등록해 주세요.</msg>\n    </Response>`;
 
   it("UT-L9 키가 비었을 때와 서버 미등록일 때를 구분해 설명한다", () => {
-    expect(lawApiRejection(blank)).toContain("인식하지 못했어요");
+    expect(lawApiRejection(blank)).toContain("필수 입력값");
     expect(lawApiRejection(unregistered)).toContain("IP·도메인이 법제처 OPEN API 에 등록되지 않았어요");
   });
 
@@ -167,5 +169,15 @@ describe("법제처 인증 거절 응답", () => {
     const e = new LawApiAuthError("x");
     expect(e instanceof Error && e instanceof LawApiAuthError).toBe(true);
     expect(new Error("x") instanceof LawApiAuthError).toBe(false);
+  });
+});
+
+describe("법제처 요청 헤더", () => {
+  it("UT-L12 도메인 등록용 Referer 는 기본값을 쓰고, 빈 값·공백이면 기본값, 지정하면 그 값", () => {
+    expect(lawRequestHeaders(undefined)).toEqual({ Referer: DEFAULT_LAW_REFERER });
+    expect(lawRequestHeaders("")).toEqual({ Referer: DEFAULT_LAW_REFERER });
+    expect(lawRequestHeaders("  ")).toEqual({ Referer: DEFAULT_LAW_REFERER });
+    expect(lawRequestHeaders(" https://example.test/ ")).toEqual({ Referer: "https://example.test/" });
+    expect(DEFAULT_LAW_REFERER).toBe("https://calc.homesell.co.kr/");
   });
 });

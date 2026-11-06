@@ -22,6 +22,8 @@ concurrency:
 
 env:
   LAW_OC: ${{ secrets.LAW_OC }}
+  # (선택) 저장소 Variables LAW_REFERER — OPEN API 에 등록한 도메인. 비우면 https://calc.homesell.co.kr/
+  LAW_REFERER: ${{ vars.LAW_REFERER }}
   GH_TOKEN: ${{ github.token }}
 
 jobs:
