@@ -56,7 +56,8 @@ jobs:
         if: steps.watch.outputs.code == '10'
         run: |
           hash=$(sha256sum law-report.md | cut -c1-12)
-          existing=$(gh issue list --label law-change --state open --json number,body --jq '.[0] | select(. != null) | "\(.number) \(.body | test("hash:'"$hash"'"))"')
+          # 같은 law-change 라벨의 다른 이슈(인증 거절·간이세액표 실패 알림)는 건드리지 않도록 제목으로 한정한다
+          existing=$(gh issue list --label law-change --state open --limit 200 --json number,title,body --jq '[.[] | select(.title | startswith("법령 변경 감지"))] | .[0] | select(. != null) | "\(.number) \(.body | test("hash:'"$hash"'"))"')
           body="$(cat law-report.md)
 
           ---
@@ -108,7 +109,7 @@ jobs:
         if: steps.watch.outputs.code == '4' || steps.sync.outputs.code == '4'
         run: |
           title="법령 감시 중단: 법제처 API 인증 거절"
-          open=$(gh issue list --label law-change --state open --json number,title | jq -r --arg t "$title" '.[] | select(.title==$t) | .number' | head -1)
+          open=$(gh issue list --label law-change --state open --limit 200 --json number,title | jq -r --arg t "$title" '.[] | select(.title==$t) | .number' | head -1)
           if [ -n "$open" ]; then echo "::warning::이슈 #$open 이 이미 열려 있어 새로 만들지 않아요."; exit 0; fi
           gh issue create --label law-change --title "$title" --body "법제처 OPEN API 가 요청을 거절해 법령 변경 감시가 멈춰 있어요. 해결하기 전까지 매일 같은 실패가 나지만 이 이슈 하나만 열려 있어요.
 
@@ -123,7 +124,7 @@ jobs:
         if: steps.sync.outputs.code == '1' || steps.sync.outputs.code == '2'
         run: |
           title="간이세액표 자동 확인 실패 (코드 ${{ steps.sync.outputs.code }})"
-          open=$(gh issue list --label law-change --state open --json number,title | jq -r --arg t "$title" '.[] | select(.title==$t) | .number' | head -1)
+          open=$(gh issue list --label law-change --state open --limit 200 --json number,title | jq -r --arg t "$title" '.[] | select(.title==$t) | .number' | head -1)
           if [ -n "$open" ]; then echo "::warning::이슈 #$open 이 이미 열려 있어 새로 만들지 않아요."; exit 0; fi
           gh issue create --label law-change --title "$title" --body "별표2 확인/변환에 실패했어요. 수동으로 시행령 별표2 개정 여부를 확인하세요 (docs/LAW-WATCH.md). 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
 
