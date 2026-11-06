@@ -55,6 +55,24 @@ export interface Snapshot {
 const FIELD = /<([^<>/\s!?]+)>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))<\/\1>/g;
 
 /** `<law id="1">…</law>` 같은 항목 블록을 {태그: 값} 목록으로 */
+/** 법제처가 인증키(OC)·서버 IP/도메인 등록 문제로 요청 자체를 거절했다는 뜻의 오류 (다시 시도해도 같은 결과) */
+export class LawApiAuthError extends Error {}
+
+/**
+ * 거절 응답이면 사람이 읽을 설명을, 아니면 undefined.
+ * 실제 응답 예 — 키가 비었을 때: "필수입력요소 검증에 실패하였습니다 / 필수 입력값이 존재하지 않습니다",
+ * 키는 있으나 등록되지 않은 서버(IP·도메인)일 때: "사용자 정보 검증에 실패하였습니다 / …IP주소 및 도메인주소를 등록해 주세요".
+ */
+export function lawApiRejection(text: string): string | undefined {
+  const head = text.slice(0, 600);
+  if (!/<Response>/.test(head)) return undefined;
+  const result = /<result>([^<]*)<\/result>/.exec(head)?.[1]?.trim() ?? "";
+  const msg = /<msg>([^<]*)<\/msg>/.exec(head)?.[1]?.trim() ?? "";
+  if (/필수입력요소 검증/.test(result)) return `법제처가 인증키(OC)를 인식하지 못했어요 (빈 값이거나, 저장한 값이 OC 형식이 아닐 수 있어요) — ${msg || result}`;
+  if (/사용자 정보 검증/.test(result)) return `인증키가 없거나 이 서버의 IP·도메인이 법제처 OPEN API 에 등록되지 않았어요 — ${msg || result}`;
+  return undefined;
+}
+
 export function parseItems(xml: string, itemTag: string): Record<string, string>[] {
   const blocks = xml.match(new RegExp(`<${itemTag}(?: [^>]*)?>[\\s\\S]*?</${itemTag}>`, "g")) ?? [];
   return blocks.map((b) => {
