@@ -6,7 +6,10 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { LawApiAuthError, diffSnapshots, hasChanges, lawApiRejection, lawEntries, parseItems, reportMarkdown, ruleEntries, totalCount, type LawEntry, type RuleEntry, type Snapshot, type Targets } from "../src/watch/law-api.ts";
 
 // 공백만 들어 있는 비밀값도 "없음"으로 본다
-const OC = (process.env.LAW_OC ?? "").trim() || "test";
+const RAW_OC = process.env.LAW_OC ?? "";
+const OC = RAW_OC.trim() || "test";
+/** 키 값은 절대 출력하지 않고, 어떤 값이 전달됐는지(길이·종류)만 알려 원인 진단에 쓴다 */
+const OC_INFO = RAW_OC === "" ? "Secrets LAW_OC 가 비어 있어 공용 키 test 사용" : OC === "test" && RAW_OC.trim() === "" ? "Secrets LAW_OC 가 공백뿐이라 공용 키 test 사용" : `Secrets LAW_OC 사용 (길이 ${RAW_OC.length}자, 앞뒤 공백 ${RAW_OC.length - OC.length}자, 영숫자 외 문자 ${OC.replace(/[A-Za-z0-9]/g, "").length}자)`;
 const ROOT = new URL("..", import.meta.url).pathname;
 const TARGETS = `${ROOT}data/watch/targets.json`;
 const SNAPSHOT = `${ROOT}data/watch/snapshot.json`;
@@ -78,7 +81,7 @@ try {
   collected = await collect(targets);
 } catch (e) {
   if (e instanceof LawApiAuthError) {
-    console.error(`법제처 API 가 요청을 거절했어요 (재시도하지 않고 멈춰요): ${e.message}`);
+    console.error(`법제처 API 가 요청을 거절했어요 (재시도하지 않고 멈춰요): ${e.message}\n  전달된 키: ${OC_INFO}`);
     process.exit(4);
   }
   throw e;
