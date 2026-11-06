@@ -81,5 +81,14 @@ Claude 예약 루틴(매일 07:12 KST, 새 세션으로 실행)이 `law-change`�
 
 ## 6. 운영 설정
 - 저장소 맨 위 탭 **Settings**(Actions 탭이 아님) → 왼쪽 Code and automation → Actions → General → 맨 아래 Workflow permissions → **"Allow GitHub Actions to create and approve pull requests"** 체크 후 Save (간이세액표 자동 PR 용; 없으면 이슈로 대체 알림). 설정 완료(2026-10-11).
-- (선택) Secrets `LAW_OC`: 법제처 OPEN API 인증키 발급(<https://open.law.go.kr>) — 없으면 공용 키로 동작하며, 차단되면 조회 실패 경고가 뜬다.
+- Secrets `LAW_OC`: 법제처(국가법령정보 공동활용, <https://open.law.go.kr>) OPEN API 인증키(OC). 마이페이지의 인증키 내역에서 확인한다. 없거나 공백이면 공용 키 `test` 로 폴백하지만 2026-10-12 부터 거절된다(§6.1).
 - 감시 대상 추가/삭제: `data/watch/targets.json` → `npm run law:update`.
+
+### 6.1 법제처 API 인증 점검 (2026-11-06 발견)
+**증상**: 매일 "간이세액표 자동 확인 실패" 이슈가 쌓이고 실행이 19~20분씩 걸림 → 26개 조회가 모두 거절됨.
+**법제처 거절 응답은 두 가지**이고, 로그 문구로 구분한다 (`src/watch/law-api.ts` 의 `lawApiRejection`).
+| 로그 문구 | 뜻 | 조치 |
+|---|---|---|
+| 필수입력요소 검증 … 필수 입력값이 존재하지 않습니다 | OC 가 빈 값 (Secrets `LAW_OC` 가 비었거나 공백만 있음 — 코드에서 공백은 `test` 로 폴백하므로 이 문구는 키가 비어 전달됐을 때) | Secrets `LAW_OC` 에 인증키를 다시 저장 |
+| 사용자 정보 검증 … IP주소 및 도메인주소를 등록해 주세요 | 키는 있으나 호출하는 서버의 IP/도메인이 등록되지 않음 (`test` 키 포함) | 마이페이지 OPEN API 신청 정보에 호출 서버 IP/도메인 등록. **GitHub Actions 러너는 IP 가 고정이 아님** → 고정 IP 서버(자체 호스팅 러너·VPS)에서 실행하거나, 도메인 등록이 허용되는지 확인 |
+**동작**: 거절 응답은 재시도하지 않고(종료 코드 4) 1초 안에 멈춘다. 간이세액표 확인은 건너뛴다. 이슈는 "법령 감시 중단: 법제처 API 인증 거절" 하나만 열고, 이미 열려 있으면 새로 만들지 않는다 (같은 제목의 "간이세액표 자동 확인 실패" 이슈도 중복 생성하지 않음). 고친 뒤 Actions 에서 '법령 변경 감시'를 수동 실행해 통과하면 이슈를 닫는다.

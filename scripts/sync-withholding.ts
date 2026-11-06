@@ -5,14 +5,16 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { findWithholdingAnnex, guessEffectiveFrom } from "../src/watch/annex.ts";
+import { lawApiRejection } from "../src/watch/law-api.ts";
 
-const OC = process.env.LAW_OC || "test";
+// 공백만 들어 있는 비밀값도 "없음"으로 본다
+const OC = (process.env.LAW_OC ?? "").trim() || "test";
 const ROOT = new URL("..", import.meta.url).pathname;
 const check = process.argv.includes("--check");
 
 async function get(url: string, binary = false): Promise<Buffer | string> {
   let last: unknown;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -38,6 +40,11 @@ function currentRevision(): string {
 }
 
 const xml = (await get(`https://www.law.go.kr/DRF/lawService.do?OC=${OC}&target=law&ID=003956&type=XML`)) as string;
+const rejected = lawApiRejection(xml);
+if (rejected) {
+  console.error(`법제처 API 가 요청을 거절했어요: ${rejected}`);
+  process.exit(4);
+}
 const annex = findWithholdingAnnex(xml);
 if (!annex) {
   console.error("시행령 XML 에서 [별표 2] 근로소득 간이세액표를 찾지 못했어요 (응답 형식 변경 가능성). 수동 확인이 필요해요.");

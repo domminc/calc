@@ -3,9 +3,10 @@
 //   node scripts/law-watch.ts update                      스냅샷을 현재 상태로 갱신 (변경을 반영·확인한 뒤)
 // 환경: LAW_OC (법제처 OPEN API 인증키, 기본 "test"). 대상: data/watch/targets.json, 스냅샷: data/watch/snapshot.json
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { diffSnapshots, hasChanges, lawEntries, parseItems, reportMarkdown, ruleEntries, totalCount, type LawEntry, type RuleEntry, type Snapshot, type Targets } from "../src/watch/law-api.ts";
+import { LawApiAuthError, diffSnapshots, hasChanges, lawApiRejection, lawEntries, parseItems, reportMarkdown, ruleEntries, totalCount, type LawEntry, type RuleEntry, type Snapshot, type Targets } from "../src/watch/law-api.ts";
 
-const OC = process.env.LAW_OC || "test";
+// 공백만 들어 있는 비밀값도 "없음"으로 본다
+const OC = (process.env.LAW_OC ?? "").trim() || "test";
 const ROOT = new URL("..", import.meta.url).pathname;
 const TARGETS = `${ROOT}data/watch/targets.json`;
 const SNAPSHOT = `${ROOT}data/watch/snapshot.json`;
@@ -14,14 +15,18 @@ const BASE = "https://www.law.go.kr/DRF/lawSearch.do";
 async function fetchXml(params: Record<string, string>): Promise<string> {
   const url = `${BASE}?${new URLSearchParams({ OC, type: "XML", ...params })}`;
   let last: unknown;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(45_000) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
+      // 인증 거절은 다시 시도해도 같다 — 재시도하지 않고 바로 멈춘다
+      const rejected = lawApiRejection(text);
+      if (rejected) throw new LawApiAuthError(rejected);
       if (!/<resultCode>00<\/resultCode>/.test(text)) throw new Error(`응답 이상: ${text.slice(0, 120).replace(/\s+/g, " ")}`);
       return text;
     } catch (e) {
+      if (e instanceof LawApiAuthError) throw e;
       last = e;
       await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
     }
@@ -50,6 +55,7 @@ async function collect(targets: Targets): Promise<{ snapshot: Snapshot; failures
       if (!entries.some((e) => e.status === "현행")) throw new Error("현행 법령이 조회되지 않음");
       laws[t.name] = entries;
     } catch (e) {
+      if (e instanceof LawApiAuthError) throw e;
       failures.push(`${t.name}: ${e instanceof Error ? e.message : e}`);
     }
   }
@@ -57,6 +63,7 @@ async function collect(targets: Targets): Promise<{ snapshot: Snapshot; failures
     try {
       rules[t.id] = ruleEntries(await allPages({ target: "admrul", query: t.query }, "admrul"), t);
     } catch (e) {
+      if (e instanceof LawApiAuthError) throw e;
       failures.push(`${t.label}: ${e instanceof Error ? e.message : e}`);
     }
   }
@@ -66,7 +73,17 @@ async function collect(targets: Targets): Promise<{ snapshot: Snapshot; failures
 const [, , cmd = "check", ...rest] = process.argv;
 const targets = JSON.parse(readFileSync(TARGETS, "utf8")) as Targets;
 const before = existsSync(SNAPSHOT) ? (JSON.parse(readFileSync(SNAPSHOT, "utf8")) as Snapshot) : undefined;
-const { snapshot, failures } = await collect(targets);
+let collected: Awaited<ReturnType<typeof collect>>;
+try {
+  collected = await collect(targets);
+} catch (e) {
+  if (e instanceof LawApiAuthError) {
+    console.error(`법제처 API 가 요청을 거절했어요 (재시도하지 않고 멈춰요): ${e.message}`);
+    process.exit(4);
+  }
+  throw e;
+}
+const { snapshot, failures } = collected;
 const total = targets.laws.length + targets.rules.length;
 
 if (failures.length) console.error(`조회 실패 ${failures.length}/${total}:\n- ${failures.join("\n- ")}`);

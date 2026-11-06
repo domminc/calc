@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  LawApiAuthError,
   diffSnapshots,
   hasChanges,
+  lawApiRejection,
   lawEntries,
   parseItems,
   reportMarkdown,
@@ -142,5 +144,28 @@ describe("간이세액표(별표2) 개정 탐지", () => {
     expect(revisionOf("&lt;개정 2024. 2. 29.&gt;")).toBe("2024-02-29");
     expect(guessEffectiveFrom("2026-02-27")).toBe("2026-03-01");
     expect(guessEffectiveFrom("2026-12-15")).toBe("2027-01-01");
+  });
+});
+
+describe("법제처 인증 거절 응답", () => {
+  // 실제 응답(2026-11-06): 키가 비었을 때 / 키는 있으나 등록되지 않은 서버일 때
+  const blank = `<?xml version="1.0" encoding="UTF-8"?>\n    <Response>\n        <result>필수입력요소 검증에 실패하였습니다.</result>\n        <msg>필수 입력값이 존재하지 않습니다. 요청 URL을 확인해 주세요.</msg>\n    </Response>`;
+  const unregistered = `<?xml version="1.0" encoding="UTF-8"?>\n    <Response>\n        <result>사용자 정보 검증에 실패하였습니다.</result>\n        <msg>OPEN API 호출 시 사용자 검증을 위하여 정확한 서버장비의 IP주소 및 도메인주소를 등록해 주세요.</msg>\n    </Response>`;
+
+  it("UT-L9 키가 비었을 때와 서버 미등록일 때를 구분해 설명한다", () => {
+    expect(lawApiRejection(blank)).toContain("비어 있어요");
+    expect(lawApiRejection(unregistered)).toContain("IP·도메인이 법제처 OPEN API 에 등록되지 않았어요");
+  });
+
+  it("UT-L10 정상 응답·법령 XML 은 거절로 보지 않는다", () => {
+    expect(lawApiRejection(wrap("LawSearch", 0, []))).toBeUndefined();
+    expect(lawApiRejection('<?xml version="1.0"?><법령 법령키="1"><기본정보>…</기본정보></법령>')).toBeUndefined();
+    expect(lawApiRejection("")).toBeUndefined();
+  });
+
+  it("UT-L11 LawApiAuthError 는 일반 Error 와 구분된다 (재시도하지 않는 근거)", () => {
+    const e = new LawApiAuthError("x");
+    expect(e instanceof Error && e instanceof LawApiAuthError).toBe(true);
+    expect(new Error("x") instanceof LawApiAuthError).toBe(false);
   });
 });
