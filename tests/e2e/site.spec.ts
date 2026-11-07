@@ -334,6 +334,31 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     }
   });
 
+  test("E83c 세그먼트는 글자 줄 수와 상관없이 모두 같은 높이이고 글자가 넘치지 않으며, 안내 박스 글자는 테두리에 붙지 않는다", async ({ page }) => {
+    for (const w of [360, 390]) {
+      await page.setViewportSize({ width: w, height: 800 });
+      for (const path of ["/salary", "/payroll", "/payroll?mode=hourly", "/freelancer", "/yearend?tab=couple"]) {
+        await page.goto(`${path}${path.includes("?") ? "&" : "?"}asOf=${AS_OF}`);
+        const r = await page.evaluate(() => {
+          const segs = [...document.querySelectorAll<HTMLElement>(".segmented")].filter((e) => e.offsetParent);
+          const spans = segs.flatMap((e) => [...e.querySelectorAll<HTMLElement>(".seg-opt span")]);
+          const sum = document.querySelector<HTMLElement>(".upcoming summary");
+          const box = document.querySelector<HTMLElement>(".upcoming");
+          const textTop = sum && box ? sum.getBoundingClientRect().top - box.getBoundingClientRect().top : 99;
+          return {
+            heights: [...new Set(segs.map((e) => Math.round(e.getBoundingClientRect().height)))],
+            clipped: spans.filter((e) => e.scrollHeight > e.clientHeight + 1).length,
+            summaryPadTop: sum ? parseFloat(getComputedStyle(sum).paddingTop) : 99,
+            textTop,
+          };
+        });
+        expect(r.heights, `${w}px ${path} 세그먼트 높이`).toHaveLength(1);
+        expect(r.clipped, `${w}px ${path} 글자 넘침`).toBe(0);
+        expect(r.summaryPadTop, `${w}px ${path} 안내 박스 위 여백`).toBeGreaterThanOrEqual(12);
+      }
+    }
+  });
+
   test("E84 Liquid 디자인: 유리는 내비게이션에만, 내용은 둥근 카드·단색 면이고 그림자·도넛·그라데이션이 없다", async ({ page }) => {
     await page.goto(`/salary?asOf=${AS_OF}`);
     await expect(page.locator(".donut")).toHaveCount(0);
