@@ -106,7 +106,7 @@ body { padding-bottom: calc(var(--tab-h) + 24px + env(safe-area-inset-bottom)); 
 .crumb { margin: 0 0 10px; color: var(--sub); font-size: .8125rem; font-weight: 600; }
 .crumb a { color: inherit; }
 .upcoming { margin: 20px 0 0; padding: 0 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-m); font-size: .875rem; }
-.upcoming summary { cursor: pointer; min-height: 52px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; list-style: none; }
+.upcoming summary { cursor: pointer; min-height: 52px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; padding: 14px 0; list-style: none; }
 .upcoming summary::-webkit-details-marker { display: none; }
 .upcoming summary::after { content: "펼치기 ＋"; margin-left: auto; color: var(--sub); font-size: .8125rem; font-weight: 700; }
 .upcoming[open] summary::after { content: "접기 －"; }
@@ -208,9 +208,10 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 .segmented[data-n="1"] { --n: 1; } .segmented[data-n="2"] { --n: 2; } .segmented[data-n="3"] { --n: 3; } .segmented[data-n="4"] { --n: 4; }
 .seg-opt { position: relative; min-width: 0; }
 .seg-opt input { position: absolute; opacity: 0; inset: 0; z-index: 1; cursor: pointer; margin: 0; width: 100%; height: 100%; }
-.seg-opt span { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 44px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-xs); font-size: .875rem; font-weight: 600; color: var(--sub); line-height: 1.3; transition: background-color .2s var(--ease), color .2s; }
+/* 칸 높이는 고정(글자가 한 줄이든 두 줄이든 모든 세그먼트가 같은 키). 선택해도 굵기를 바꾸지 않아 줄바꿈이 달라지지 않는다 */
+.seg-opt span { display: flex; align-items: center; justify-content: center; text-align: center; height: 52px; padding: 4px 8px; border: 1px solid transparent; border-radius: var(--r-xs); font-size: .875rem; font-weight: 700; color: var(--sub); line-height: 1.25; text-wrap: balance; transition: background-color .2s var(--ease), color .2s; }
 .seg-opt:hover span { color: var(--ink); }
-.seg-opt input:checked + span { background: var(--sheet); border-color: var(--rule); color: var(--ink); font-weight: 800; }
+.seg-opt input:checked + span { background: var(--sheet); border-color: var(--rule); color: var(--ink); }
 .seg-opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* 체크: 스위치 */
 .check { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 700; font-size: .9375rem; min-height: 44px; }
