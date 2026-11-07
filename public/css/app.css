@@ -254,9 +254,10 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 
 /* ---------- 결과 ---------- */
 .result { padding: 0; container-type: inline-size; }
-.result-inner { padding: 12px; display: grid; gap: 20px; }
+/* 동심: 카드 반지름 28 − 안쪽 여백 8 = 패널 반지름 20 (Apple: concentric = 부모 반경 − 패딩). 글자 안쪽 여백은 8 + 14 = 22 로 그대로 */
+.result-inner { padding: 8px; display: grid; gap: 20px; }
 .result-inner > * { margin: 0; min-width: 0; }
-.result-inner > :not(.r-panel) { margin-left: 10px; margin-right: 10px; }
+.result-inner > :not(.r-panel) { margin-left: 14px; margin-right: 14px; }
 .r-panel { display: grid; gap: 6px; padding: 20px 22px 22px; background: var(--accent-wash); border-radius: var(--r-m); }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; }
 .badge { display: inline-block; padding: 2px 10px; background: var(--sheet); border-radius: var(--r-pill); color: var(--ink); font-size: .75rem; font-weight: 700; white-space: nowrap; }
