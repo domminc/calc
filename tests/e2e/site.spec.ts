@@ -378,9 +378,27 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     expect(info.panelImg).toBe("none");
     expect(info.cardShadow).toBe("none");
     expect(info.cardRadius).toBe("28px"); // --r-l
-    expect(info.panelRadius).toBe("20px"); // --r-m = 카드 28 - 여백 8 (동심)
+    expect(info.panelRadius).toBe("20px"); // --r-m
     expect(info.resultBlur).toBe("none"); // 내용은 유리가 아니다
     expect(info.headerBlur).toContain("blur"); // 내비게이션만 유리
+  });
+
+  test("E84d 동심 모서리: 안쪽 반지름 = 바깥 반지름 − 둘 사이 여백 (결과 카드→패널, 세그먼트 트랙→칸)", async ({ page }) => {
+    await page.goto(`/salary?asOf=${AS_OF}`);
+    const r = await page.evaluate(() => {
+      const rad = (e: Element) => parseFloat(getComputedStyle(e).borderTopLeftRadius);
+      const inset = (outer: Element, inner: Element, bw: number) => inner.getBoundingClientRect().left - outer.getBoundingClientRect().left - bw;
+      const card = document.querySelector(".result")!;
+      const panel = document.querySelector(".r-panel")!;
+      const track = document.querySelector(".segmented")!;
+      const cell = track.querySelector(".seg-opt span")!;
+      return {
+        card: rad(card), panel: rad(panel), cardInset: inset(card, panel, 1),
+        track: rad(track), cell: rad(cell), trackInset: inset(track, cell, 0),
+      };
+    });
+    expect(r.panel).toBeCloseTo(r.card - r.cardInset, 0);
+    expect(r.cell).toBeCloseTo(r.track - r.trackInset, 0);
   });
 
   test("E84b 인쇄: 다크 테마에서도 흰 종이·검은 글자로 인쇄된다", async ({ page }) => {
