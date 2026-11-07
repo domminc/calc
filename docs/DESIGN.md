@@ -320,5 +320,5 @@ Apple 이 WWDC26 에서 낸 iOS 27 은 Liquid Glass 를 버리지 않고 **다�
 UT-D1 장식 그라데이션·그라데이션 글자·바깥 그림자 금지 / UT-D2 `backdrop-filter` 는 `.site-header`·`.tabbar`·`.sticky-bar` 에만 + `prefers-reduced-transparency`·`prefers-contrast`·`@supports not` 대체 존재 / UT-D3 반지름 토큰만 / UT-D4 떠오름·바운스·키프레임 금지 / UT-D5 보라 계열 금지 / UT-D6 금지 마크업. e2e E84: 결과 카드 28px·패널 20px·그림자 none·도넛 0·내용은 blur 없음·헤더는 blur.
 
 ### 12.6 검증 기록 (2026-11-07)
-Chromium 라이트·다크 × 390·1280px 로 홈·연봉·연말정산 확인. e2e 181 통과(axe 라이트/다크 포함 — 다크 탭바 라벨 대비 위반을 `--glass-sub` 로 해결). **WebKit(iOS Safari)은 이 환경에 없어 미확인**: `-webkit-backdrop-filter`, 하단 탭바 ↔ 홈 인디케이터 간격, 스위치(`appearance:none` + `::after`), `input[type=date]` 는 실기기 확인이 필요하다.
+Chromium 라이트·다크 × 390·768·1280px 로 홈·연봉·연말정산·프리랜서·계산 기준 확인. 내비·탭바 전환 폭은 800px(760~799px 에서 알약 내비가 테마 버튼을 찌그러뜨렸다). e2e 181 통과(axe 라이트/다크 포함 — 다크 탭바 라벨 대비 위반을 `--glass-sub` 로 해결). **WebKit(iOS Safari)은 이 환경에 없어 미확인**: `-webkit-backdrop-filter`, 하단 탭바 ↔ 홈 인디케이터 간격, 스위치(`appearance:none` + `::after`), `input[type=date]` 는 실기기 확인이 필요하다.
 

@@ -77,7 +77,6 @@ h2 { font-size: 1.25rem; font-weight: 800; }
 .nav a:hover { color: var(--ink); }
 .nav a[aria-current="page"] { color: var(--ink); background: var(--sheet); border-color: var(--rule); font-weight: 700; }
 .icon-btn { margin-left: auto; width: 40px; height: 40px; display: inline-grid; place-items: center; border-radius: var(--r-pill); border: 0; background: var(--wash); color: var(--ink); cursor: pointer; transition: background-color .15s; }
-.nav + .icon-btn { margin-left: 0; }
 .icon-btn:hover { background: var(--wash2); }
 .theme-btn .i-moon { display: none; }
 :root[data-theme="dark"] .theme-btn .i-sun { display: none; }
@@ -86,14 +85,14 @@ h2 { font-size: 1.25rem; font-weight: 800; }
   :root:not([data-theme="light"]) .theme-btn .i-sun { display: none; }
   :root:not([data-theme="light"]) .theme-btn .i-moon { display: block; }
 }
-@media (min-width: 760px) { .nav { display: inline-flex; } }
+@media (min-width: 800px) { .nav { display: inline-flex; } .nav + .icon-btn { margin-left: 0; } } /* 알약 내비는 폭이 넓어 760~799px 에서는 테마 버튼이 찌그러진다 → 그 아래는 탭바 */
 /* 하단 탭바: 화면 아래에 떠 있는 유리 알약. 고른 탭은 알약 안의 알약 */
 .tabbar { position: fixed; z-index: 25; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 2px; padding: 5px; border-radius: var(--r-pill); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 var(--glass-hi); }
 .tabbar a { flex: 1; min-width: 0; height: calc(var(--tab-h) - 12px); display: flex; align-items: center; justify-content: center; border-radius: var(--r-pill); color: var(--glass-sub); text-decoration: none; font-size: .78125rem; font-weight: 600; letter-spacing: -0.04em; white-space: nowrap; transition: background-color .2s var(--ease), color .2s; }
 .tabbar a:active { background: var(--wash); }
 .tabbar a[aria-current="page"] { color: var(--accent); font-weight: 800; background: var(--tabsel); }
 body { padding-bottom: calc(var(--tab-h) + 24px + env(safe-area-inset-bottom)); }
-@media (min-width: 760px) { .tabbar { display: none; } body { padding-bottom: 0; } }
+@media (min-width: 800px) { .tabbar { display: none; } body { padding-bottom: 0; } }
 
 /* ---------- 홈 ---------- */
 .meta-line { display: flex; flex-wrap: wrap; gap: 2px 16px; margin: 0; padding: 14px 0 0; color: var(--sub); font-size: .8125rem; font-weight: 600; }
@@ -362,6 +361,9 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 @media (prefers-contrast: more) {
   .site-header, .tabbar, .sticky-bar { background: var(--sheet); -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--ink); }
   .card, .index, .facts > div, .quick, .faq details { border-color: var(--ink); }
+  /* 회색 채움만으로는 칸 경계가 안 보이는 사용자를 위해, 조작 요소에 또렷한 경계를 준다 */
+  .input-wrap, select, input[type=date], textarea, .allow-name input, .stepper input { border-color: var(--ink); }
+  .segmented, .btn, .chip, .pill, .step, .icon-btn, .nav, .check input { box-shadow: inset 0 0 0 1px var(--ink); }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .site-header, .tabbar, .sticky-bar { background: var(--sheet); }

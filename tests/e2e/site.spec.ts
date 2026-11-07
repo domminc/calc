@@ -319,6 +319,21 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     }
   });
 
+  test("E83b 태블릿 폭(760~820px)에서도 헤더 테마 버튼이 찌그러지지 않고 오른쪽 끝에 붙는다", async ({ page }) => {
+    for (const w of [760, 768, 799, 800, 820]) {
+      await page.setViewportSize({ width: w, height: 700 });
+      await page.goto("/");
+      const r = await page.evaluate(() => {
+        const b = document.querySelector(".site-header .icon-btn")!.getBoundingClientRect();
+        const bar = document.querySelector(".site-header .bar")!;
+        return { width: Math.round(b.width), right: Math.round(b.right), over: bar.scrollWidth - bar.clientWidth, vw: innerWidth };
+      });
+      expect(r.width, `${w}px 버튼 폭`).toBe(40);
+      expect(r.over, `${w}px 헤더 넘침`).toBe(0);
+      expect(r.vw - r.right, `${w}px 오른쪽 여백`).toBeLessThan(w * 0.05 + 8); // 오른쪽 거터에 붙음(로고 옆에 떠 있지 않음)
+    }
+  });
+
   test("E84 Liquid 디자인: 유리는 내비게이션에만, 내용은 둥근 카드·단색 면이고 그림자·도넛·그라데이션이 없다", async ({ page }) => {
     await page.goto(`/salary?asOf=${AS_OF}`);
     await expect(page.locator(".donut")).toHaveCount(0);
