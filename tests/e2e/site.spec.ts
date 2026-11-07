@@ -340,6 +340,20 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     expect(info.heroColor).not.toBe("rgb(255, 255, 255)"); // 색 배경 위 흰 글자가 아니라 종이 위 잉크 글자
   });
 
+  test("E84b 인쇄: 다크 테마에서도 흰 종이·검은 글자로 인쇄된다", async ({ page }) => {
+    await page.goto(`/salary?asOf=${AS_OF}`);
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+    await page.emulateMedia({ media: "print" });
+    const info = await page.evaluate(() => {
+      const css = (sel: string) => getComputedStyle(document.querySelector(sel)!);
+      return { bodyBg: css("body").backgroundColor, cardBg: css(".result").backgroundColor, hero: css("[data-hero]").color };
+    });
+    expect(info.bodyBg).toBe("rgb(255, 255, 255)");
+    expect(info.cardBg).toBe("rgb(255, 255, 255)");
+    const rgb = (info.hero.match(/\d+/g) ?? ["255"]).map(Number);
+    expect(Math.max(...rgb)).toBeLessThan(60); // 밝은 다크 모드 글자색이 아니라 어두운 잉크
+  });
+
   test("E85 '곧 바뀌는 것' 안내: 접이식, 확정/확정 전 구분 (2027 이전)", async ({ page }) => {
     test.skip(!BEFORE_2027, "2027년부터는 현재 세트가 2027 이라 안내가 없다");
     await page.goto(`/freelancer?asOf=${AS_OF}`);

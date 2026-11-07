@@ -353,6 +353,15 @@ select:focus, input[type=date]:focus, textarea:focus, .allow-name input:focus { 
 
 /* 인쇄: 결과만 한 장의 명세서로 */
 @media print {
+  /* 다크 테마로 보던 중에 인쇄해도 흰 종이·검은 잉크 토큰으로 고정 */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --paper: #fff !important; --sheet: #fff !important; --wash: #ece8dc !important;
+    --ink: #1a1915 !important; --sub: #5b584d !important; --rule: #bfbbad !important; --field: #8a8576 !important;
+    --accent: #1b3a8c !important; --accent-fg: #fff !important; --accent-wash: #e6eaf5 !important;
+    --warn: #855000 !important; --danger: #a5271b !important;
+    --seg-net: #1b3a8c !important; --seg-1: #2b2a24 !important; --seg-2: #55524a !important; --seg-3: #7e7a6e !important; --seg-4: #a09c8e !important; --seg-5: #bfbbad !important; --seg-6: #d6d2c4 !important;
+    color-scheme: light;
+  }
   .site-header, .tabbar, .sticky-bar, .form, .actions, .upcoming, .faq, .site-footer .links { display: none !important; }
   body { background: #fff; color: #000; padding: 0; }
   .calc-grid { display: block; }
