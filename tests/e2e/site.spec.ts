@@ -283,7 +283,7 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     await page.reload();
     expect(await page.evaluate(() => document.documentElement.getAttribute("data-theme"))).toBe(t1);
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bg).toBe(t1 === "dark" ? "rgb(9, 11, 10)" : "rgb(244, 246, 243)");
+    expect(bg).toBe(t1 === "dark" ? "rgb(19, 18, 15)" : "rgb(244, 241, 232)");
   });
 
   test("E81 슬라이더 ↔ 숫자 입력이 서로 연동되고 결과가 바뀐다", async ({ page }) => {
@@ -319,10 +319,25 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     }
   });
 
-  test("E84 결과 도넛은 넓은 결과 카드에서만 보인다", async ({ page, isMobile }) => {
+  test("E84 명세서 디자인: 결과는 장식 차트·그라데이션 없이 단색 잉크 숫자로 보인다", async ({ page }) => {
     await page.goto(`/salary?asOf=${AS_OF}`);
-    if (isMobile) await expect(page.locator(".donut")).toBeHidden();
-    else await expect(page.locator(".donut")).toBeVisible();
+    await expect(page.locator(".donut")).toHaveCount(0);
+    const info = await page.evaluate(() => {
+      const css = (sel: string) => getComputedStyle(document.querySelector(sel)!);
+      return {
+        bodyImg: css("body").backgroundImage,
+        panelImg: css(".r-panel").backgroundImage,
+        heroColor: css("[data-hero]").color,
+        inkColor: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),
+        cardShadow: css(".result").boxShadow,
+        cardRadius: css(".result").borderTopLeftRadius,
+      };
+    });
+    expect(info.bodyImg).toBe("none");
+    expect(info.panelImg).toBe("none");
+    expect(info.cardShadow).toBe("none");
+    expect(parseFloat(info.cardRadius)).toBeLessThanOrEqual(4);
+    expect(info.heroColor).not.toBe("rgb(255, 255, 255)"); // 색 배경 위 흰 글자가 아니라 종이 위 잉크 글자
   });
 
   test("E85 '곧 바뀌는 것' 안내: 접이식, 확정/확정 전 구분 (2027 이전)", async ({ page }) => {

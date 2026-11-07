@@ -1,5 +1,5 @@
 // 페이지 HTML (서버 렌더링). 계산기 화면은 쿼리스트링 입력으로 결과까지 그려서 JS 없이도 동작한다.
-import { compute, sanitizeInputs, type CalcKey } from "../render/calculators.ts";
+import { CALC_KEYS, compute, sanitizeInputs, type CalcKey } from "../render/calculators.ts";
 import { renderForm } from "../render/page-forms.ts";
 import { comma, esc, hangulWon, wonText } from "../render/html.ts";
 import { calcSalary, parseSalaryInput } from "../core/salary.ts";
@@ -61,36 +61,36 @@ export function homePage(c: Ctx): string {
     : `<li><span class="tag-ok">최신</span><span>${y}년 요율로 계산 중이에요</span></li>`;
   const checked = (snapshotJson as { checkedAt: string }).checkedAt;
   const popular = [3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 10000].map((m) => `<a class="pill" href="/salary/table/${m}">${comma(m)}만원</a>`).join("");
-  const tile = (key: CalcKey, ico: string, extra = "") => {
-    const m = CALCS[key];
-    return `<a class="tile t-${key}" href="${m.path}"><span class="t-ico">${icon(ico)}</span><h2>${esc(m.name)}</h2><p>${esc(m.intro.split(". ")[0] ?? m.intro)}</p>${extra}<span class="go">계산하기 ${icon("arrow")}</span></a>`;
-  };
-  const body = `<section class="hero-home"><div class="wrap hero-grid">
+  const first = (t: string): string => t.split(". ")[0] ?? t;
+  const index = CALC_KEYS.map((k, i) => {
+    const m = CALCS[k];
+    return `<li><a href="${m.path}"><span class="no">${String(i + 1).padStart(2, "0")}</span><span class="ix-main"><b>${esc(m.name)}</b><span>${esc(first(m.intro))}</span></span><span class="ix-go" aria-hidden="true">→</span></a></li>`;
+  }).join("");
+  const body = `<section class="wrap hero-home">
+<p class="meta-line"><span>${y}년 귀속</span><span>기준일 ${esc(rs.asOf)}</span><span>법령 마지막 확인 ${esc(checked)}</span></p>
+<div class="hero-grid">
 <div class="hero-copy">
-<p class="eyebrow"><span class="pill-tag">${icon("spark")}${y}년 기준 · 법이 바뀌면 자동 반영</span></p>
-<h1>연봉부터 4대보험까지,<span>정확한 기준으로 계산해요.</span></h1>
-<p class="lead">국세청 간이세액표 원문과 공단 요율을 그대로 적용해요. 법령은 매일 확인하고, 어떻게 계산했는지·확인하지 못한 값이 무엇인지도 숨기지 않아요.</p>
-<div class="hero-actions"><a class="btn btn-primary" href="/salary">연봉 계산하기 ${icon("arrow")}</a><a class="btn" href="/salary/table">연봉별 실수령액표</a></div>
+<h1>월급에서 빠지는 돈을, 항목마다 근거와 함께.</h1>
+<p class="lead">국세청 간이세액표 원문과 공단 요율을 그대로 적용해요. 어떻게 계산했는지, 확인하지 못한 값이 무엇인지도 화면에 적어 둬요.</p>
+<div class="hero-actions"><a class="btn btn-primary" href="/salary">연봉 계산하기 →</a><a class="btn" href="/salary/table">연봉별 실수령액표</a></div>
 </div>
-<div class="quick card" data-quick data-meal="${r.taxFree.mealMonthly}">
+<div class="quick" data-quick data-meal="${r.taxFree.mealMonthly}">
 <div class="field"><label for="q-annual">내 연봉 (세전)</label>
 <div class="input-wrap"><input id="q-annual" name="q_annual" class="money" type="text" inputmode="numeric" autocomplete="off" value="${comma(quickAnnual)}"><span class="suffix">원</span></div>
 <p class="hangul" data-q-hangul>${esc(hangulWon(quickAnnual))}</p>
 <input type="range" class="range" data-range-for="q_annual" min="10000000" max="200000000" step="1000000" value="${quickAnnual}" aria-label="연봉 조절 막대"></div>
 <div class="quick-out" aria-live="polite"><p class="q-label">월 실수령액 <span data-q-cond>(비과세 ${comma(r.taxFree.mealMonthly)}원 · 부양가족 본인)</span></p><p class="q-net" data-q-net>${wonText(q.netMonthly)}</p><p class="q-sub" data-q-sub>공제 ${wonText(q.totalDeduction)} · 공제율 ${(q.deductionRatio * 100).toFixed(1)}%</p></div>
-<a class="btn btn-primary" href="/salary?annual=${quickAnnual}" data-q-link>이 연봉으로 자세히 계산 ${icon("arrow")}</a>
+<a class="btn btn-primary" href="/salary?annual=${quickAnnual}" data-q-link>이 연봉으로 자세히 계산 →</a>
 </div>
-</div></section>
-<section class="wrap"><div class="bento">
-<a class="tile t-salary" href="/salary"><span class="t-ico">${icon("salary")}</span><h2>연봉 계산기</h2><p>연봉에서 4대보험과 소득세를 뺀 월 실수령액. 희망 실수령액으로 필요 연봉도 거꾸로 찾아요.</p><span class="mini"><span class="mini-bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="mini-num">${wonText(q.netMonthly)}</span></span><span class="go">계산하기 ${icon("arrow")}</span></a>
-${tile("payroll", "payroll")}
-${tile("insurance", "insurance")}
-${tile("freelancer", "freelancer")}
-${tile("yearend", "yearend")}
-<div class="tile t-law"><span class="t-ico">${icon("flag")}</span><h2>법이 바뀌면 계산도 바뀌어요</h2><ul>${lawItems}</ul><p>법령·고시를 매일 확인하고, 시행일이 되면 자동으로 새 기준을 써요. 마지막 확인 ${esc(checked)} · <a href="/basis#watch">감시 현황</a></p></div>
-<div class="tile t-stat"><h2>간이세액표 원문 그대로</h2><span class="stat">${rs.set.withholding.bands.length}구간</span><p>소득세는 추정식이 아니라 국세청 표를 조회해요. ${esc(rs.set.withholding.revision.split(" ")[0] ?? "")} 개정.</p></div>
-<div class="tile t-table"><h2>자주 찾는 연봉</h2><div class="pills">${popular}</div><a class="go" href="/salary/table">전체 표 보기 ${icon("arrow")}</a></div>
-</div></section>`;
+</div>
+</section>
+<section class="wrap" aria-labelledby="idx-h"><h2 class="sec-h" id="idx-h"><span class="no">목차</span>계산기 다섯 가지</h2>
+<ol class="index">${index}</ol></section>
+<section class="wrap facts">
+<div><h3>법이 바뀌면 계산도 바뀌어요</h3><ul>${lawItems}</ul><p>법령·고시를 매일 확인하고, 시행일이 되면 새 기준을 써요. <a href="/basis#watch">감시 현황</a></p></div>
+<div><h3>간이세액표 원문 그대로</h3><span class="stat">${rs.set.withholding.bands.length}구간</span><p>소득세는 추정식이 아니라 국세청 표를 조회해요. ${esc(rs.set.withholding.revision.split(" ")[0] ?? "")} 개정.</p></div>
+<div><h3>자주 찾는 연봉</h3><div class="pills">${popular}</div><p><a href="/salary/table">전체 표 보기</a></p></div>
+</section>`;
   return layout({
     title: `homesell 계산기 — 연봉·급여·4대보험·프리랜서·연말정산 계산기 ${y}`,
     description: "연봉 실수령액, 급여명세서, 4대보험, 프리랜서 원천징수와 종합소득세, 연말정산 환급 예측을 국세청 간이세액표와 공단 요율 그대로 계산해요. 법이 바뀌면 시행일에 맞춰 자동 반영돼요.",

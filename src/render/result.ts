@@ -25,28 +25,9 @@ export function adjustedList(items: string[]): string {
   return `<ul class="notices">${items.map((t) => `<li class="notice notice-info">${esc(t)}</li>`).join("")}</ul>`;
 }
 
-/** 결과 맨 위 그라데이션 패널 (배지 + 큰 숫자 + 도넛). 뒤의 주석은 잠정·시행일 안내가 들어갈 자리 */
-export function panel(badgesHtml: string, heroHtml: string, donutHtml = ""): string {
-  return `<div class="r-panel">${badgesHtml}${heroHtml}${donutHtml}</div><!--rate-notices-->`;
-}
-
-/** 실수령 비율 도넛 (장식 — 같은 정보가 아래 범례·표에 있다) */
-export function donut(total: number, net: number, lines: Line[]): string {
-  if (total <= 0) return "";
-  const R = 46;
-  const C = 2 * Math.PI * R;
-  const segs = [{ cls: "arc-net", v: net }, ...lines.filter((l) => l.amount > 0).map((l, i) => ({ cls: `arc-${Math.min(i + 1, 6)}`, v: l.amount }))];
-  let off = 0;
-  const arcs = segs
-    .map((s) => {
-      const dash = Math.max((s.v / total) * C, 0);
-      const c = `<circle class="${s.cls}" cx="60" cy="60" r="${R}" fill="none" stroke-width="13" stroke-dasharray="${dash.toFixed(2)} ${(C - dash).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"/>`;
-      off += dash;
-      return c;
-    })
-    .join("");
-  const pctNet = Math.round((net / total) * 100);
-  return `<svg class="donut" viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="trk" cx="60" cy="60" r="${R}" fill="none" stroke-width="13"/><g transform="rotate(-90 60 60)">${arcs}</g><text x="60" y="63" text-anchor="middle" font-size="22">${pctNet}%</text><text x="60" y="80" text-anchor="middle" font-size="9">실수령</text></svg>`;
+/** 결과 맨 위 명세서 머리 (배지 + 큰 숫자). 뒤의 주석은 잠정·시행일 안내가 들어갈 자리 */
+export function panel(badgesHtml: string, heroHtml: string): string {
+  return `<div class="r-panel">${badgesHtml}${heroHtml}</div><!--rate-notices-->`;
 }
 
 export function hero(label: string, value: number, sub: string, negativeLabel?: string): string {
@@ -101,7 +82,7 @@ export function renderSalary(r: SalaryResult, opts: { reverse?: { annual: number
     .map((x) => `<tr><th scope="row">${esc(x.label)}</th><td class="basis">${esc(x.employerBasis)}</td><td class="amt">${wonText(x.employer)}</td></tr>`)
     .join("")}</tbody><tfoot><tr><th scope="row">사업주 부담 합계</th><td class="basis"></td><td class="amt">${wonText(r.employerInsurance)}</td></tr></tfoot></table></div>
 <p class="muted">월 인건비 총액(총지급액 + 사업주 4대보험): <b>${wonText(r.employerCost)}</b></p></div></details>`;
-  return `<div class="result-inner">${panel(badges(r.ratesYear, r.asOf, extra), head, donut(r.monthlyGross, r.netMonthly, r.lines))}
+  return `<div class="result-inner">${panel(badges(r.ratesYear, r.asOf, extra), head)}
 ${splitBar(r.monthlyGross, r.netMonthly, r.lines, `월 총지급액 ${wonText(r.monthlyGross)} 중 실수령 ${wonText(r.netMonthly)}, 공제 ${wonText(r.totalDeduction)}`)}
 ${gross}
 ${breakdown(r.lines, "공제 합계", r.totalDeduction)}
@@ -131,7 +112,7 @@ export function renderPayroll(r: PayrollResult): string {
     : `통상시급 ${wonText(r.ordinaryHourly)} · 총 지급액 <b>${wonText(r.gross)}</b> · 공제 ${wonText(r.totalDeduction)}`;
   const earn = breakdown(r.earnings, "지급 합계", r.gross, ["지급 항목", "산출", "금액"]);
   const ded = r.deductions.length ? breakdown(r.deductions, "공제 합계", r.totalDeduction, ["공제 항목", "계산 근거", "금액"]) : `<p class="muted">공제 없이 계산했어요.</p>`;
-  return `<div class="result-inner">${panel(badges(r.ratesYear, r.asOf), hero("차인지급액 (실수령)", r.net, sub), donut(r.gross, r.net, r.deductions))}
+  return `<div class="result-inner">${panel(badges(r.ratesYear, r.asOf), hero("차인지급액 (실수령)", r.net, sub))}
 ${splitBar(r.gross, r.net, r.deductions, `총 지급액 ${wonText(r.gross)} 중 실수령 ${wonText(r.net)}, 공제 ${wonText(r.totalDeduction)}`)}
 <h3 class="h3">지급 내역</h3>${earn}
 <h3 class="h3">공제 내역</h3>${ded}
@@ -173,7 +154,7 @@ export function renderW33(r: W33Result, year: number, asOf: string): string {
   if (r.rates.ei > 0) lines.push({ key: "ei", label: `고용보험 (${lb.ei})`, amount: w.ei, basis: `세전 금액 × ${lb.ei} (원 미만 절사)` });
   const cut = w.tax + w.local + w.ei;
   const cutLabel = r.rates.ei > 0 ? "원천징수·고용보험" : "원천징수";
-  return `<div class="result-inner">${panel(badges(year, asOf), hero(r.fromNet ? "필요한 세전 금액" : "실수령액", r.fromNet ? w.gross : w.net, r.fromNet ? `세전 <b>${wonText(w.gross)}</b> → 실수령 <b>${wonText(w.net)}</b>` : `세전 ${wonText(w.gross)} − ${cutLabel} ${wonText(cut)} (${r.rates.ei > 0 ? `${lb.total} + ${lb.ei}` : lb.total})`), donut(w.gross, w.net, lines))}
+  return `<div class="result-inner">${panel(badges(year, asOf), hero(r.fromNet ? "필요한 세전 금액" : "실수령액", r.fromNet ? w.gross : w.net, r.fromNet ? `세전 <b>${wonText(w.gross)}</b> → 실수령 <b>${wonText(w.net)}</b>` : `세전 ${wonText(w.gross)} − ${cutLabel} ${wonText(cut)} (${r.rates.ei > 0 ? `${lb.total} + ${lb.ei}` : lb.total})`))}
 ${splitBar(w.gross, w.net, lines, `세전 ${wonText(w.gross)} 중 실수령 ${wonText(w.net)}, ${cutLabel} ${wonText(cut)}`)}
 ${breakdown(lines, `${cutLabel} 합계`, cut)}
 ${r.months > 1 ? `<dl class="kv"><div><dt>${r.months}개월 세전</dt><dd>${wonText(r.annualGross)}</dd></div><div><dt>${r.months}개월 실수령</dt><dd>${wonText(r.annualNet)}</dd></div></dl>` : ""}
@@ -217,7 +198,7 @@ export function renderNet(r: NetResult, year: number, asOf: string): string {
   ];
   const monthlyRevenue = Math.floor(r.tax.revenue / 12);
   const burdenMonthly = lines.reduce((s, l) => s + l.amount, 0);
-  return `<div class="result-inner">${panel(badges(year, asOf), hero("월 실수령 추정", r.netMonthly, `월 수입 ${wonText(monthlyRevenue)} − 세금·보험 ${wonText(burdenMonthly)}${r.annualBurden - r.tax.totalTax - (g.nhis + g.ltc + g.nps) * 12 > 0 ? " − 실제 지출 경비" : ""}`), donut(monthlyRevenue, Math.max(0, r.netMonthly), lines))}
+  return `<div class="result-inner">${panel(badges(year, asOf), hero("월 실수령 추정", r.netMonthly, `월 수입 ${wonText(monthlyRevenue)} − 세금·보험 ${wonText(burdenMonthly)}${r.annualBurden - r.tax.totalTax - (g.nhis + g.ltc + g.nps) * 12 > 0 ? " − 실제 지출 경비" : ""}`))}
 ${splitBar(monthlyRevenue, Math.max(0, r.netMonthly), lines, `월 수입 ${wonText(monthlyRevenue)} 중 실수령 ${wonText(r.netMonthly)}`)}
 ${breakdown(lines, "세금·보험 합계(월)", burdenMonthly)}
 ${noticeList([...r.notices, ...r.tax.notices])}
