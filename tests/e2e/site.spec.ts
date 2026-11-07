@@ -283,7 +283,7 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     await page.reload();
     expect(await page.evaluate(() => document.documentElement.getAttribute("data-theme"))).toBe(t1);
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bg).toBe(t1 === "dark" ? "rgb(19, 18, 15)" : "rgb(244, 241, 232)");
+    expect(bg).toBe(t1 === "dark" ? "rgb(0, 0, 0)" : "rgb(242, 242, 247)");
   });
 
   test("E81 슬라이더 ↔ 숫자 입력이 서로 연동되고 결과가 바뀐다", async ({ page }) => {
@@ -319,7 +319,7 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
     }
   });
 
-  test("E84 명세서 디자인: 결과는 장식 차트·그라데이션 없이 단색 잉크 숫자로 보인다", async ({ page }) => {
+  test("E84 Liquid 디자인: 유리는 내비게이션에만, 내용은 둥근 카드·단색 면이고 그림자·도넛·그라데이션이 없다", async ({ page }) => {
     await page.goto(`/salary?asOf=${AS_OF}`);
     await expect(page.locator(".donut")).toHaveCount(0);
     const info = await page.evaluate(() => {
@@ -327,17 +327,20 @@ test.describe("새 디자인: 테마·슬라이더·빠른 계산·탭바·법�
       return {
         bodyImg: css("body").backgroundImage,
         panelImg: css(".r-panel").backgroundImage,
-        heroColor: css("[data-hero]").color,
-        inkColor: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),
         cardShadow: css(".result").boxShadow,
         cardRadius: css(".result").borderTopLeftRadius,
+        panelRadius: css(".r-panel").borderTopLeftRadius,
+        resultBlur: css(".result").backdropFilter,
+        headerBlur: css(".site-header").backdropFilter,
       };
     });
     expect(info.bodyImg).toBe("none");
     expect(info.panelImg).toBe("none");
     expect(info.cardShadow).toBe("none");
-    expect(parseFloat(info.cardRadius)).toBeLessThanOrEqual(4);
-    expect(info.heroColor).not.toBe("rgb(255, 255, 255)"); // 색 배경 위 흰 글자가 아니라 종이 위 잉크 글자
+    expect(info.cardRadius).toBe("28px"); // --r-l
+    expect(info.panelRadius).toBe("20px"); // --r-m = 카드 28 - 여백 8 (동심)
+    expect(info.resultBlur).toBe("none"); // 내용은 유리가 아니다
+    expect(info.headerBlur).toContain("blur"); // 내비게이션만 유리
   });
 
   test("E84b 인쇄: 다크 테마에서도 흰 종이·검은 글자로 인쇄된다", async ({ page }) => {
