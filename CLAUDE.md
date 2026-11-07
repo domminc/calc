@@ -12,7 +12,7 @@
 - 배포는 main 병합으로만 (Actions `배포`). Workers Route·DNS 는 Cloudflare 대시보드에서만 바꾼다. **병합 뒤에는 `/api/health` 의 `버전` 이 새 커밋 앞 8자리인지 확인한다** (배포가 멈추면 사이트는 조용히 옛 화면이다).
 - 웹 폰트는 Pretendard 다이나믹 서브셋만 쓴다 (`public/fonts/`). 다른 웹폰트 로드 금지.
 - 요율·세율 숫자는 화면 문구에도 직접 쓰지 않는다 (`data/rates` 에서 읽는다, UT-H1). 프리랜서 3.3% 는 프리랜서 계산기에만 둔다 (급여 계산기에는 없다).
-- 디자인 방향은 "명세서(종이와 잉크)" 하나다 (docs/DESIGN.md §11). 그라데이션·글래스·큰 그림자·큰 반지름·도넛·장식 아이콘을 다시 넣지 않는다 — `tests/core/design-guard.test.ts` 가 막는다.
+- 디자인 방향은 "Liquid"(Apple iOS 27 의 다듬은 Liquid Glass 를 웹에 옮김) 하나다 (docs/DESIGN.md §12). 유리는 헤더·탭바·요약바에만, 내용은 불투명 둥근 카드, 그림자 대신 테두리, 반지름은 `--r-*` 토큰만, `prefers-reduced-transparency` 대응 필수. 그라데이션 히어로·메시·벤토·도넛·장식 아이콘·보라색은 넣지 않는다 — `tests/core/design-guard.test.ts` 가 막는다. **디자인 "트렌드"는 기억이 아니라 검색으로 확인하고 출처를 문서에 남긴다.**
 - **화면을 바꾸면 눈으로 확인한다**: `bash scripts/dev-up.sh` 로 띄우고 Chromium 으로 375·390·768·1280px(라이트·다크)를 찍어 본다. e2e 의 E20(문서 전체 가로 스크롤)은 칸 안쪽 잘림·삐져나옴을 못 잡으므로 E90~E94 도 통과시킨다. 이 환경에는 WebKit(iOS Safari)이 없으니 Safari 고유 동작은 확인했다고 말하지 말고 사용자에게 실기기 확인을 요청한다.
 - 외부 API 응답을 파싱하는 코드는 가짜 데이터 시험만으로 믿지 않는다. 실제 응답으로 한 번 돌려 본다 (법제처 별표2 파서가 이렇게 실패했다, docs/LAW-WATCH.md §5.1).
 - 린트(`npm run lint`)까지 돌린 뒤 PR 을 올린다. `scripts/*.mjs` 에서 `setTimeout` 같은 전역은 `node:timers/promises` 등을 import 해서 쓴다.

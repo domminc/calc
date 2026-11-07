@@ -58,8 +58,8 @@ export function layout(o: PageOpts): string {
 ${o.noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="canonical" href="${esc(url)}">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f4f1e8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#13120f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${SITE_NAME}">
 <meta property="og:locale" content="ko_KR">
@@ -77,7 +77,7 @@ ${SPRITE}
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header class="site-header">
   <div class="wrap bar">
-    <a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="2"/><rect x="7" y="10" width="18" height="4"/><rect x="7" y="18" width="18" height="4"/></svg><span>homesell <b>계산기</b></span></a>
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" width="24" height="24" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="9"/><rect x="7" y="10" width="18" height="4" rx="2"/><rect x="7" y="18" width="18" height="4" rx="2"/></svg><span>homesell <b>계산기</b></span></a>
     <nav class="nav" aria-label="주 메뉴">${nav}</nav>
     <button type="button" class="icon-btn theme-btn" data-theme-toggle aria-label="화면 테마 바꾸기 (현재: 시스템)" title="화면 테마">${icon("sun", "i-sun")}${icon("moon", "i-moon")}</button>
   </div>
